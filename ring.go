@@ -48,12 +48,17 @@ func (r *Ring) Set(s Source) {
 // Do executes f on each value of the ring.
 func (r *Ring) Do(f func(Source)) {
 	r.Ring.Do(func(i interface{}) {
-		f(i.(Source))
+		if s, ok := i.(Source); ok {
+			f(s)
+			return
+		}
+		f(nil)
 	})
 }
 
 func (r *Ring) Link(s *Ring) *Ring {
-	return &Ring{r.Ring.Link(s.Ring)}
+	r.Ring = r.Ring.Link(s.Ring)
+	return r
 }
 
 func (r *Ring) Unlink(n int) *Ring {
@@ -61,9 +66,11 @@ func (r *Ring) Unlink(n int) *Ring {
 }
 
 func (r *Ring) Next() *Ring {
-	return &Ring{r.Ring.Next()}
+	r.Ring = r.Ring.Next()
+	return r
 }
 
 func (r *Ring) Prev() *Ring {
-	return &Ring{r.Ring.Prev()}
+	r.Ring = r.Ring.Prev()
+	return r
 }

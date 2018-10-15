@@ -57,7 +57,6 @@ var errEmptyRing = errors.New("empty source ring. Use Put to provide at least on
 
 // Get returns a Source from the balancer's source list using the predefined Strategy.
 // If no Strategy was provided, Get returns a Source using RoundRobin.
-// If no source
 func (b *Balancer) Get() (Source, error) {
 	b.mux.Lock()
 	defer b.mux.Unlock()
@@ -93,7 +92,6 @@ func (b *Balancer) Put(ss ...Source) {
 		s.Set(v)
 		s.Next()
 	}
-	s.Next() // Point back to the first inserted element.
 
 	if b.r == nil {
 		// Initialize the ring if it's still empty

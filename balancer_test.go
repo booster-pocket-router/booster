@@ -50,15 +50,17 @@ func TestBalancer_roundRobin(t *testing.T) {
 
 	s0 := new(srcMock)
 	s1 := new(srcMock)
+	s2 := new(srcMock)
 	s0.id = "s0"
 	s1.id = "s1"
+	s2.id = "s2"
 
-	b.Put(s0, s1)
+	b.Put(s0, s1, s2)
 
 	tt := []struct {
 		out string
 	}{
-		{"s0"}, {"s1"}, {"s0"},
+		{"s0"}, {"s1"}, {"s2"}, {"s0"},
 	}
 
 	for i, v := range tt {
