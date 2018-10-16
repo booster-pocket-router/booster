@@ -15,6 +15,8 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+// Package core provides components useful for containing and retrieving
+// entities, i.e. Sources, using a defined strategy.
 package core
 
 import (
