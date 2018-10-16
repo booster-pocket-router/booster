@@ -100,7 +100,7 @@ func (b *Balancer) Put(ss ...Source) {
 	}
 
 	// Make one step back. We want to keep the current position of the ring,
-	// adding the sources as "tail"
+	// adding the sources as "tail".
 	r := b.r.Prev()
 
 	// Link the new ring to the old one. The resulting ring will point to the same
