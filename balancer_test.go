@@ -48,12 +48,9 @@ func TestBalancer_roundRobin(t *testing.T) {
 		t.Fatal("Unexpected nil error with empty balancer")
 	}
 
-	s0 := new(srcMock)
-	s1 := new(srcMock)
-	s2 := new(srcMock)
-	s0.id = "s0"
-	s1.id = "s1"
-	s2.id = "s2"
+	s0 := &srcMock{"s0"}
+	s1 := &srcMock{"s1"}
+	s2 := &srcMock{"s2"}
 
 	b.Put(s0, s1, s2)
 
