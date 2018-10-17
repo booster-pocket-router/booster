@@ -26,15 +26,18 @@ import (
 	"sync"
 )
 
-type Metrics map[string]interface{}
-
 // Source represents an entity that is able to provide network connections and
 // keep a set of metrics regarding the operations that is performing, or has
 // performed.
 type Source interface {
+	// ID uniquely identifies a source.
 	ID() string
+
+	// Metrics provide information about the past usage of the source.
+	Metrics() map[string]interface{}
+
+	// DialContext dials connections with address using the specified network.
 	DialContext(ctx context.Context, network, address string) (net.Conn, error)
-	Metrics() Metrics
 }
 
 // Strategy chooses a source from a ring of sources.
@@ -109,3 +112,7 @@ func (b *Balancer) Put(ss ...Source) {
 	// position as the original one.
 	b.r = r.Link(s)
 }
+
+func (b *Balancer) Del(ss ...Source) {
+}
+

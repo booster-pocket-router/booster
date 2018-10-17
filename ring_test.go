@@ -39,7 +39,7 @@ func TestGetSetSource(t *testing.T) {
 	}
 
 	// set a source
-	src := &srcMock{}
+	src := &mock{}
 	r.Set(src)
 
 	// retrieve it
@@ -52,7 +52,7 @@ func TestNextPrev(t *testing.T) {
 	r := core.NewRing(4)
 	for i := 0; i < r.Len(); i++ {
 		s := fmt.Sprintf("%d", i)
-		r.Set(&srcMock{s})
+		r.Set(&mock{s})
 		r.Next()
 	}
 
@@ -80,8 +80,8 @@ func TestLink(t *testing.T) {
 	for i := 0; i < n; i++ {
 		s0 := fmt.Sprintf("%d", i)
 		s1 := fmt.Sprintf("%d", i + n)
-		r0.Set(&srcMock{s0})
-		r1.Set(&srcMock{s1})
+		r0.Set(&mock{s0})
+		r1.Set(&mock{s1})
 
 		r0.Next()
 		r1.Next()
@@ -131,7 +131,7 @@ func TestUnlink(t *testing.T) {
 	r := core.NewRing(4)
 	for i := 0; i < r.Len(); i++ {
 		s := fmt.Sprintf("%d", i)
-		r.Set(&srcMock{s})
+		r.Set(&mock{s})
 		r.Next()
 	}
 

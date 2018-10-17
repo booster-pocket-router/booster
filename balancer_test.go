@@ -25,20 +25,20 @@ import (
 	"github.com/booster-proj/core"
 )
 
-type srcMock struct {
+type mock struct {
 	id string
 }
 
-func (s *srcMock) ID() string {
+func (s *mock) ID() string {
 	return s.id
 }
 
-func (s *srcMock) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+func (s *mock) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	return nil, nil
 }
 
-func (s *srcMock) Metrics() core.Metrics {
-	return core.Metrics(make(map[string]interface{}))
+func (s *mock) Metrics() map[string]interface{} {
+	return make(map[string]interface{})
 }
 
 func TestBalancer_roundRobin(t *testing.T) {
@@ -48,9 +48,9 @@ func TestBalancer_roundRobin(t *testing.T) {
 		t.Fatal("Unexpected nil error with empty balancer")
 	}
 
-	s0 := &srcMock{"s0"}
-	s1 := &srcMock{"s1"}
-	s2 := &srcMock{"s2"}
+	s0 := &mock{"s0"}
+	s1 := &mock{"s1"}
+	s2 := &mock{"s2"}
 
 	b.Put(s0, s1, s2)
 
