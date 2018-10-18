@@ -79,21 +79,19 @@ func getFilteredInterfaces(s string) []net.Interface {
 			continue
 		}
 
-		if strings.Contains(v.Name, s) {
-			addrs, err := v.Addrs()
-			if err != nil {
-				// If the source does not contain an error
-				log.Error.Printf("Unable to get interface addresses: %v. Skipping interface...", err)
-				continue
-			}
-
-			if len(addrs) == 0 {
-				log.Debug.Printf("Empty unicast/multicast address list. Skipping interface...")
-				continue
-			}
-
-			l = append(l, v)
+		addrs, err := v.Addrs()
+		if err != nil {
+			// If the source does not contain an error
+			log.Error.Printf("Unable to get interface addresses: %v. Skipping interface...", err)
+			continue
 		}
+
+		if len(addrs) == 0 {
+			log.Debug.Printf("Empty unicast/multicast address list. Skipping interface...")
+			continue
+		}
+
+		l = append(l, v)
 	}
 
 	return l
