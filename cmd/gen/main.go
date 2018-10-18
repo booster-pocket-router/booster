@@ -37,7 +37,8 @@ var (
 	BuildTime = "N/A"
 )
 
-var verbose = flag.Bool("verbose", false, "enable verbose mode")
+var verbose = flag.Bool("verbose", false, "Enable verbose mode")
+var name = flag.String("name", "", "Collect only interfaces which name contains \"name\"")
 
 func main() {
 	flag.Parse()
@@ -48,7 +49,7 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	ifs := getFilteredInterfaces("en")
+	ifs := getFilteredInterfaces(*name)
 	log.Println("")
 
 	for i, v := range ifs {
@@ -74,7 +75,7 @@ func getFilteredInterfaces(s string) []net.Interface {
 		}
 
 		if s != "" && !strings.Contains(v.Name, s) {
-			log.Debug.Printf("Interface name does not satisfy name requirements: must contain %s", s)
+			log.Debug.Printf("Interface name does not satisfy name requirements: must contain \"%s\"", s)
 			continue
 		}
 
