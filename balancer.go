@@ -20,8 +20,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package core
 
 import (
-	"errors"
 	"context"
+	"errors"
 	"net"
 	"sync"
 )
@@ -50,7 +50,8 @@ func RoundRobin(r *Ring) (Source, error) {
 }
 
 // Balancer distributes work to set of sources, using a particular strategy.
-// The zero value of the Balancer is ready to use.
+// The zero value of the Balancer is ready to use and safe to be used by multiple
+// gorountines.
 type Balancer struct {
 	mux sync.Mutex
 	r   *Ring
@@ -92,11 +93,7 @@ func (b *Balancer) Put(ss ...Source) {
 	defer b.mux.Unlock()
 
 	// Create a new ring containing the new sources.
-	s := NewRing(n)
-	for _, v := range ss {
-		s.Set(v)
-		s.Next()
-	}
+	s := NewRingSources(ss...)
 
 	if b.r == nil {
 		// Initialize the ring if it's still empty
@@ -113,6 +110,52 @@ func (b *Balancer) Put(ss ...Source) {
 	b.r = r.Link(s)
 }
 
+// Del removes ss from the list of sources stored by the balancer.
 func (b *Balancer) Del(ss ...Source) {
+	// Create a map of sources that have to be deleted (lookup O(1))
+	m := make(map[string]Source)
+	for _, v := range ss {
+		m[v.ID()] = v
+	}
+
+	b.mux.Lock()
+	defer b.mux.Unlock()
+
+	l := make([]Source, 0, b.r.Len())
+	b.r.Do(func(s Source) {
+		// Check if the identifier of this stored source is contained in the map
+		// of sources that have to be removed.
+		if _, ok := m[s.ID()]; !ok {
+			// If this source is not contained in the map, add it to the
+			// list of accepted sources.
+			l = append(l, s)
+		}
+	})
+
+	s := NewRingSources(l...)
+	b.r = s
 }
 
+// Do executes f on each source stored in the balancer.
+func (b *Balancer) Do(f func(Source)) {
+	b.mux.Lock()
+	defer b.mux.Unlock()
+
+	if b.r == nil {
+		return
+	}
+	b.r.Do(f)
+}
+
+
+// Len reports the size of the set of sources stored in the balancer.
+func (b *Balancer) Len() int {
+	b.mux.Lock()
+	defer b.mux.Unlock()
+
+	if b.r == nil {
+		return 0
+	}
+
+	return b.r.Len()
+}

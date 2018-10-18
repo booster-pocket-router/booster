@@ -18,9 +18,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package core_test
 
 import (
-	"testing"
 	"context"
 	"net"
+	"testing"
 
 	"github.com/booster-proj/core"
 )
@@ -41,7 +41,35 @@ func (s *mock) Metrics() map[string]interface{} {
 	return make(map[string]interface{})
 }
 
-func TestBalancer_roundRobin(t *testing.T) {
+// Just test that Len does not panic.
+func TestLen(t *testing.T) {
+	b := &core.Balancer{}
+	if b.Len() != 0 {
+		t.Fatalf("Unexpected balancer Len: wanted 0, found %d", b.Len())
+	}
+}
+
+// Just test that put does not panic.
+func TestPut(t *testing.T) {
+	b := &core.Balancer{}
+	s := &mock{"s0"}
+
+	t.Logf("Put %v into balancer(size: %d)", s, b.Len())
+	b.Put(s)
+
+	if b.Len() != 1 {
+		t.Fatalf("Unexpected balancer Len: wanted 1, found %d", b.Len())
+	}
+
+	b.Do(func(s core.Source) {
+		if s.ID() != "s0" {
+			t.Fatalf("Unexpected source Identifier: wanted s0, found %s", s.ID())
+		}
+	})
+}
+
+// Test balancer with its default round robin strategy.
+func TestGet_roundRobin(t *testing.T) {
 	b := &core.Balancer{}
 
 	if _, err := b.Get(); err == nil {
@@ -71,4 +99,29 @@ func TestBalancer_roundRobin(t *testing.T) {
 			t.Fatalf("Unexpected source ID: iteration(%v): wanted %v, found %v", i, v.out, s.ID())
 		}
 	}
+}
+
+func TestDel(t *testing.T) {
+	b := &core.Balancer{}
+
+	s0 := &mock{"s0"}
+	s1 := &mock{"s1"}
+
+	b.Put(s0, s1)
+
+	n := b.Len()
+	t.Logf("Inserted %v elements into previously emtpy balancer", n)
+
+	b.Del(s0)
+
+	n = n - 1
+	if b.Len() != n {
+		t.Fatalf("Unexpected balancer Len after Del: wanted %v, found %v", n, b.Len())
+	}
+
+	b.Do(func(s core.Source) {
+		if s.ID() != "s1" {
+			t.Fatalf("Unexpected source ID: wanted s1, found %v", s.ID())
+		}
+	})
 }

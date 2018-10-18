@@ -32,6 +32,17 @@ func NewRing(n int) *Ring {
 	return &Ring{ring.New(n)}
 }
 
+func NewRingSources(ss ...Source) *Ring {
+	r := NewRing(len(ss))
+	for _, v := range ss {
+		r.Set(v)
+		r.Next()
+	}
+
+	return r
+}
+
+
 // Source retrives the Value of the ring at this position.
 func (r *Ring) Source() Source {
 	if v, ok := r.Ring.Value.(Source); ok {

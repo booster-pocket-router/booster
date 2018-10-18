@@ -18,8 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package core_test
 
 import (
-	"testing"
 	"fmt"
+	"testing"
 
 	"github.com/booster-proj/core"
 )
@@ -28,6 +28,18 @@ func TestNew(t *testing.T) {
 	r := core.NewRing(1)
 	if r.Len() != 1 {
 		t.Fatal("Unexpected ring size")
+	}
+}
+
+func TestNewSources(t *testing.T) {
+	s := &mock{}
+	r := core.NewRingSources(s)
+	if r == nil {
+		t.Fatal("Unexpected nil ring")
+	}
+
+	if r.Len() != 1 {
+		t.Fatalf("Unexpected ring size: wanted 1, found %d", r.Len())
 	}
 }
 
@@ -56,7 +68,7 @@ func TestNextPrev(t *testing.T) {
 		r.Next()
 	}
 
-	tt := []string { "0", "1", "2", "3" }
+	tt := []string{"0", "1", "2", "3"}
 	i := 0
 	r.Do(func(s core.Source) {
 		v := tt[i]
@@ -79,7 +91,7 @@ func TestLink(t *testing.T) {
 
 	for i := 0; i < n; i++ {
 		s0 := fmt.Sprintf("%d", i)
-		s1 := fmt.Sprintf("%d", i + n)
+		s1 := fmt.Sprintf("%d", i+n)
 		r0.Set(&mock{s0})
 		r1.Set(&mock{s1})
 
@@ -137,10 +149,9 @@ func TestUnlink(t *testing.T) {
 
 	t.Logf("r ID before unlink: %s", r.Source().ID())
 	t.Log("r content before unlink:")
-	r.Do(func(s core.Source){
+	r.Do(func(s core.Source) {
 		t.Log(s)
 	})
-
 
 	// Remove second and third element
 	s := r.Unlink(2)
@@ -150,7 +161,7 @@ func TestUnlink(t *testing.T) {
 
 	t.Logf("r ID after unlink: %s", r.Source().ID())
 	t.Log("r content after unlink:")
-	r.Do(func(s core.Source){
+	r.Do(func(s core.Source) {
 		t.Log(s)
 	})
 
