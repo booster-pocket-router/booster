@@ -1,0 +1,10 @@
+github.com/booster-proj/core v0.0.0-20181018145534-516437b5d839 h1:7boE7Fh78r9u72vUyPyUm2vz9h8d2U3tKKKGIU96IBw=
+github.com/booster-proj/core v0.0.0-20181018145534-516437b5d839/go.mod h1:S45p4xcXkvm8HMxPunhHqmMWC2xeaKb2ZqIqLBjnMN4=
+github.com/booster-proj/log v0.0.0-20181018152734-1237d1c945a4 h1:tFWX9r7OjrMXGbKscxezPtNIqkrV7j9/cKGzNlf5ObE=
+github.com/booster-proj/log v0.0.0-20181018152734-1237d1c945a4/go.mod h1:DqLh+BshcSvoy7vIjff2JF5Z3dRMxhuK/+GA/fDIP1Q=
+github.com/booster-proj/proxy v0.0.0-20181019142104-6e269fd48123 h1:u9oBRPecDx92sNJi0Gl7A3Qdlak5AoGYUTRpIhrPENQ=
+github.com/booster-proj/proxy v0.0.0-20181019142104-6e269fd48123/go.mod h1:5dAxiBVW7b09noqi4Kf7uKKX0KZ6IC58rv6bGPrdhMA=
+golang.org/x/net v0.0.0-20180801234040-f4c29de78a2a h1:8fCF9zjAir2SP3N+axz9xs+0r4V8dqPzqsWO10t8zoo=
+golang.org/x/net v0.0.0-20180801234040-f4c29de78a2a/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
+golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f h1:wMNYb4v58l5UBM7MYRLPG6ZhfOqbKu7X5eyFl8ZhKvA=
+golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
