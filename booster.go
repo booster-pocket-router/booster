@@ -98,7 +98,6 @@ func (i *IfaceSource) DialContext(ctx context.Context, network, address string) 
 	if err != nil {
 		return nil, err
 	}
-	// TODO: Respond to ctx.Done()
 	d := &net.Dialer {
 		LocalAddr: laddr,
 	}
