@@ -35,7 +35,7 @@ import (
 
 const (
 	// contains the initial list of sources used by booster.
-	fileSources = "booster.json"
+	fileIfaces = "interfaces.json"
 )
 
 const (
@@ -68,7 +68,7 @@ func main() {
 
 	Printf("Version: %s, BuildTime: %s\n\n", Version, BuildTime)
 
-	ifs := getFilteredInterfaces(*name)
+	ifs := GetFilteredInterfaces(*name)
 	if len(ifs) == 0 {
 		Printf("No relevant interfaces found\n")
 		return
@@ -86,12 +86,12 @@ func main() {
 		log.Fatalf("Unable to open work directory: %v", err)
 	}
 
-	f := filepath.Join(dir, fileSources)
+	f := filepath.Join(dir, fileIfaces)
 	Dprintf("Creating sources file %v\n", f)
 
 	file, err := os.Create(f)
 	if err != nil {
-		log.Fatalf("Unable to create sources file: %v", err)
+		log.Fatalf("Unable to create file: %v", err)
 	}
 	defer file.Close()
 
@@ -125,23 +125,7 @@ func main() {
 	}
 }
 
-func mapIface(i net.Interface) (*booster.IfaceSource, error) {
-	addrs, _ := i.Addrs() // has already been checked
-	addr, err := resolveTCPAddr(addrs[0])
-	if err != nil {
-		return nil, err
-	}
-
-	return &booster.IfaceSource{
-		Name:         i.Name,
-		HardwareAddr: i.HardwareAddr.String(),
-		Addr:         addr.String(),
-		MTU:          i.MTU,
-		Flags:        i.Flags,
-	}, nil
-}
-
-func getFilteredInterfaces(s string) []net.Interface {
+func GetFilteredInterfaces(s string) []net.Interface {
 	ifs, err := net.Interfaces()
 	if err != nil {
 		Printf("Unable to get interfaces: %v\n", err)
@@ -184,6 +168,33 @@ func getFilteredInterfaces(s string) []net.Interface {
 	return l
 }
 
+func mapIface(i net.Interface) (*booster.IfaceSource, error) {
+	l, _ := i.Addrs() // has already been checked
+	addrs := make([]string, 0, len(l))
+
+	for _, v := range l {
+		addr, err := resolveTCPAddr(v)
+		if err != nil {
+			// Ignore the issue and go on. We just one one address
+			continue
+		}
+
+		addrs = append(addrs, addr.String())
+	}
+
+	if len(addrs) == 0 {
+		return nil, fmt.Errorf("Unable to find one resolvable IP address among: %+v", l)
+	}
+
+	return &booster.IfaceSource{
+		Name:         i.Name,
+		HardwareAddr: i.HardwareAddr.String(),
+		Addrs:        addrs,
+		MTU:          i.MTU,
+		Flags:        i.Flags,
+	}, nil
+}
+
 func resolveTCPAddr(addr net.Addr) (*net.TCPAddr, error) {
 	ipAddr, _, err := net.ParseCIDR(addr.String())
 	if err != nil {
@@ -193,3 +204,4 @@ func resolveTCPAddr(addr net.Addr) (*net.TCPAddr, error) {
 	s := net.JoinHostPort(ipAddr.String(), "0")
 	return net.ResolveTCPAddr("tcp", s)
 }
+
