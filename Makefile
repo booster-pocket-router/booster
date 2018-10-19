@@ -12,17 +12,15 @@ arch = "$(if $(GOARCH),_$(GOARCH)/,/)"
 bind = "$(CURDIR)/bin/$(GOOS)$(arch)"
 
 .PHONY: all
-all: gen
+all: gen booster
 
 .PHONY: gen
 gen:
 	$Q go build $(if $V,-v) -o $(bind)/gen $(VERSION_FLAGS) $(CURDIR)/cmd/gen
 
-# Adding another target
-#
-#.PHONY: otherbin
-#otherbin:
-#	$Q go build $(if $V,-v) -o $(bind)/otherbin $(VERSION_FLAGS) $(CURDIR)/cmd/otherbin
+.PHONY: booster
+booster:
+	$Q go build $(if $V,-v) -o $(bind)/booster $(VERSION_FLAGS) $(CURDIR)/cmd/booster
 
 .PHONY: clean
 clean:
