@@ -50,7 +50,7 @@ type IfaceSource struct {
 	N            int       `json:"-"`
 }
 
-func (i *IfaceSource) Addr(network string) (*net.TCPAddr, error) {
+func (i *IfaceSource) Addr4(network string) (*net.TCPAddr, error) {
 	// Use only ipv4 address to connect to localhost
 	var addr string
 	for _, v := range i.Addrs {
@@ -94,7 +94,7 @@ func (c *ifaceConn) Close() error {
 var _ core.Source = &IfaceSource{}
 
 func (i *IfaceSource) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
-	laddr, err := i.Addr(network)
+	laddr, err := i.Addr4(network)
 	if err != nil {
 		return nil, err
 	}
