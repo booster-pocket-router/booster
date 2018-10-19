@@ -18,17 +18,28 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/booster-proj/booster"
 	"github.com/booster-proj/log"
 )
 
 const (
 	// contains the initial list of sources used by booster.
 	fileSources = "booster.json"
+)
+
+const (
+	version = 1
 )
 
 // Version and BuildTime are filled in during build by the Makefile
@@ -40,54 +51,130 @@ var (
 var verbose = flag.Bool("verbose", false, "Enable verbose mode")
 var name = flag.String("name", "", "Collect only interfaces which name contains \"name\"")
 
+func Dprintf(format string, a ...interface{}) {
+	w := ioutil.Discard
+	if *verbose {
+		w = os.Stdout
+	}
+	fmt.Fprintf(w, format, a...)
+}
+
+func Printf(format string, a ...interface{}) {
+	fmt.Printf(format, a...)
+}
+
 func main() {
 	flag.Parse()
 
-	log.Info.Printf("Version: %s, BuildTime: %s\n\n", Version, BuildTime)
-	if *verbose {
-		log.Info.Printf("running in verbose mode")
-		log.SetLevel(log.DebugLevel)
-	}
+	Printf("Version: %s, BuildTime: %s\n\n", Version, BuildTime)
 
 	ifs := getFilteredInterfaces(*name)
-	log.Println("")
-
-	for i, v := range ifs {
-		log.Info.Printf("%d: %+v", i, v)
+	if len(ifs) == 0 {
+		Printf("No relevant interfaces found\n")
+		return
 	}
+
+	Printf("\n\nCollected %d relevant interfaces:\n", len(ifs))
+	for i, v := range ifs {
+		Printf("%d: %+v\n", i, v)
+	}
+	Dprintf("\n")
+
+	// Create sources file
+	dir, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("Unable to open work directory: %v", err)
+	}
+
+	f := filepath.Join(dir, fileSources)
+	Dprintf("Creating sources file %v\n", f)
+
+	file, err := os.Create(f)
+	if err != nil {
+		log.Fatalf("Unable to create sources file: %v", err)
+	}
+	defer file.Close()
+
+	// Convert net.Interfaces into InterfaceSources
+
+	// Encode collected interfaces & save them into the file
+	var w io.Writer = file
+	if *verbose {
+		w = io.MultiWriter(w, os.Stdout)
+	}
+
+	var ifaces []*booster.IfaceSource
+	for _, v := range ifs {
+		i, err := mapIface(v)
+		if err != nil {
+			Printf("Unable to map net.Interface to booster.IfaceSource: %v. Skipping...", err)
+			continue
+		}
+		ifaces = append(ifaces, i)
+	}
+
+	Dprintf("Encoding filtered interfaces into %v\n", f)
+	if err = json.NewEncoder(w).Encode(struct {
+		Version int                    `json:"version"`
+		Body    []*booster.IfaceSource `json:"body"`
+	}{
+		Version: version,
+		Body:    ifaces,
+	}); err != nil {
+		log.Fatalf("Unable to encode interfaces: %v", err)
+	}
+}
+
+func mapIface(i net.Interface) (*booster.IfaceSource, error) {
+	addrs, _ := i.Addrs() // has already been checked
+	addr, err := resolveTCPAddr(addrs[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return &booster.IfaceSource{
+		Name:         i.Name,
+		HardwareAddr: i.HardwareAddr.String(),
+		Addr:         addr.String(),
+		MTU:          i.MTU,
+		Flags:        i.Flags,
+	}, nil
 }
 
 func getFilteredInterfaces(s string) []net.Interface {
 	ifs, err := net.Interfaces()
 	if err != nil {
-		log.Error.Printf("Unable to get interfaces: %v", err)
+		Printf("Unable to get interfaces: %v\n", err)
 		return ifs
 	}
 
 	l := make([]net.Interface, 0, len(ifs))
 
-	for _, v := range ifs {
-		log.Debug.Printf("Inspecting interface %+v", v)
+	for i, v := range ifs {
+		if i > 0 {
+			Dprintf("\n")
+		}
+		Dprintf("Inspecting interface %+v\n", v)
 
 		if len(v.HardwareAddr) == 0 {
-			log.Debug.Printf("Empty hardware address. Skipping interface...")
+			Dprintf("Empty hardware address. Skipping interface...\n")
 			continue
 		}
 
 		if s != "" && !strings.Contains(v.Name, s) {
-			log.Debug.Printf("Interface name does not satisfy name requirements: must contain \"%s\"", s)
+			Dprintf("Interface name does not satisfy name requirements: must contain \"%s\"\n", s)
 			continue
 		}
 
 		addrs, err := v.Addrs()
 		if err != nil {
 			// If the source does not contain an error
-			log.Error.Printf("Unable to get interface addresses: %v. Skipping interface...", err)
+			Printf("Unable to get interface addresses: %v. Skipping interface...\n", err)
 			continue
 		}
 
 		if len(addrs) == 0 {
-			log.Debug.Printf("Empty unicast/multicast address list. Skipping interface...")
+			Dprintf("Empty unicast/multicast address list. Skipping interface...\n")
 			continue
 		}
 
