@@ -15,12 +15,15 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+// +build linux, darwin
+
 package booster
 
 import (
 	"context"
 	"net"
 	"sync"
+	"strings"
 
 	"github.com/booster-proj/core"
 	"github.com/booster-proj/log"
@@ -39,42 +42,104 @@ func (b *Booster) DialContext(ctx context.Context, network, address string) (net
 	return src.DialContext(ctx, network, address)
 }
 
-type IfaceSource struct {
-	Name         string    `json:"name"`
-	HardwareAddr string    `json:"hardware_addr"`
-	Addrs        []string  `json:"addrs"`
-	MTU          int       `json:"mtu"`
-	Flags        net.Flags `json:"flags"`
-
-	mux sync.Mutex
-	N            int       `json:"-"`
-}
-
-func (i *IfaceSource) Addr4(network string) (*net.TCPAddr, error) {
-	// Use only ipv4 address to connect to localhost
-	var addr string
-	for _, v := range i.Addrs {
-		ip := net.ParseIP(v)
-		if ip == nil {
-			continue
-		}
-		if v4 := ip.To4(); v4 != nil {
-			addr = v
-			break
-		}
+func GetFilteredInterfaces(s string) []Interface {
+	ifs, err := net.Interfaces()
+	if err != nil {
+		log.Error.Printf("Unable to get interfaces: %v\n", err)
+		return []Interface{}
 	}
 
-	return net.ResolveTCPAddr(network, addr)
+	l := make([]Interface, 0, len(ifs))
+
+	for _, v := range ifs {
+		log.Debug.Printf("Inspecting interface %+v\n", v)
+
+		if len(v.HardwareAddr) == 0 {
+			log.Debug.Printf("Empty hardware address. Skipping interface...")
+			continue
+		}
+
+		if s != "" && !strings.Contains(v.Name, s) {
+			log.Debug.Printf("Interface name does not satisfy name requirements: must contain \"%s\"", s)
+			continue
+		}
+
+		addrs, err := v.Addrs()
+		if err != nil {
+			// If the source does not contain an error
+			log.Debug.Printf("Unable to get interface addresses: %v. Skipping interface...", err)
+			continue
+		}
+		if len(addrs) == 0 {
+			log.Debug.Printf("Empty unicast/multicast address list. Skipping interface...")
+			continue
+		}
+
+		l = append(l, Interface{Interface:v})
+	}
+
+	return l
 }
 
-type ifaceConn struct {
-	net.Conn
+// Interface is a wrapper around net.Interface and
+// implements the core.Source interface, i.e. is it
+// capable of providing network connections through
+// the device it is referring to.
+type Interface struct {
+	net.Interface
 
-	s *IfaceSource
+	mux sync.Mutex
+	// N is the number of network connections that
+	// the interface is currenlty handling.
+	N int
+}
+
+func (i Interface) Add(val int) int {
+	i.mux.Lock()
+	defer i.mux.Unlock()
+
+	i.N += val
+	return i.N
+}
+
+func (i Interface) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	// Implementations of the `dialContext` function can be found
+	// in the {unix, darwin}_dial.go files.
+
+	// TODO(jecoz): add windows implementation
+	c, err := i.dialContext(ctx, network, address)
+	if err != nil {
+		return nil, err
+	}
+
+	conn := &Conn{
+		Conn: c,
+		Add:  i.Add,
+		Ref: i.ID(),
+	}
+
+	n := conn.Add(1)
+	log.Debug.Printf("Opening connection (ref: %v) to(%v), left(%d)", conn.RemoteAddr, conn.Ref, n)
+
+	return conn, nil
+}
+
+func (i Interface) ID() string {
+	return i.Name
+}
+
+func (i Interface) Metrics() map[string]interface{} {
+	return make(map[string]interface{})
+}
+type Conn struct {
+	net.Conn
+	Ref string // Reference identifier
+	Add func(val int) int
+
 	closed bool
 }
 
-func (c *ifaceConn) Close() error {
+func (c *Conn) Close() error {
 	if c.closed {
 		// Multiple parts of the code might try to close the connection. Better be sure
 		// that the underlying connection gets closed at some point, leave that code and
@@ -82,46 +147,10 @@ func (c *ifaceConn) Close() error {
 		return nil
 	}
 
-	c.s.mux.Lock()
-	c.s.N--
-	log.Debug.Printf("Closing connection on iface(%v), left(%d)", c.s.ID(), c.s.N)
-	c.s.mux.Unlock()
-
+	n := c.Add(-1)
+	log.Debug.Printf("Closing connection (ref: %v) to(%v), left(%d)", c.Ref, c.RemoteAddr, n)
 	c.closed = true
+
 	return c.Conn.Close()
-}
-
-var _ core.Source = &IfaceSource{}
-
-func (i *IfaceSource) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
-	laddr, err := i.Addr4(network)
-	if err != nil {
-		return nil, err
-	}
-	d := &net.Dialer {
-		LocalAddr: laddr,
-	}
-	conn, err := d.DialContext(ctx, network, address)
-	if err != nil {
-		return conn, err
-	}
-
-	i.mux.Lock()
-	i.N++
-	log.Debug.Printf("Opening connection to(%v) on iface(%v), left(%d)", address, i.ID(), i.N)
-	i.mux.Unlock()
-
-	return &ifaceConn{
-		Conn: conn,
-		s: i,
-	}, nil
-}
-
-func (i *IfaceSource) ID() string {
-	return i.Name
-}
-
-func (i *IfaceSource) Metrics() map[string]interface{} {
-	return make(map[string]interface{})
 }
 

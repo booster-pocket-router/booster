@@ -21,15 +21,14 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
-	"io"
-	"encoding/json"
 
-	"github.com/booster-proj/proxy"
+	"github.com/booster-proj/booster"
 	"github.com/booster-proj/core"
 	"github.com/booster-proj/log"
-	"github.com/booster-proj/booster"
+	"github.com/booster-proj/proxy"
 )
 
 // Version and BuildTime are filled in during build by the Makefile
@@ -40,24 +39,24 @@ var (
 
 var port = flag.Int("port", 1080, "Server listening port")
 var rawProto = flag.String("proto", "", "Proxy protocol used. Available protocols: http, https, socks5.")
-var ifacesFile = flag.String("ifaces", "", "Interfaces input file path. Usually generated with the `gen` tool.")
+var interfaceName = flag.String("iname", "", "Collect only interfaces which name contains \"name\"")
 
 var verbose = flag.Bool("verbose", false, "Enable verbose mode")
 
 func main() {
+	// Parse arguments
 	flag.Parse()
 
-	log.Info.Printf("Version: %s, BuildTime: %s\n\n", Version, BuildTime)
+	log.Info.Printf("Version: %s, BuildTime: %s", Version, BuildTime)
 	if *verbose {
 		log.Info.Printf("Running in verbose mode")
 		log.SetLevel(log.DebugLevel)
 	}
 
+	fmt.Fprintln(log.Out, "")
+
 	if *rawProto == "" {
 		log.Fatal("\"proto\" flag is required. Run `--help` for more.")
-	}
-	if *ifacesFile == "" {
-		log.Fatal("\"ifaces\" flag is required. Run `--help` for more.")
 	}
 
 	// Configure proxy server
@@ -80,32 +79,28 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Parse interfaces file
+	// Find network interfaces
 
-	file, err := os.Open(*ifacesFile)
-	if err != nil {
-		// ATM the presence of an interfaces file is mandatory
-		log.Fatalf("Unable to open %v file. Generate it with the `gen` tool, use the `--help` flag for more", *ifacesFile)
-	}
-
-	ifaces, err := decodeIfacesFrom(file)
-	if err != nil {
-		log.Fatalf("Unable to decode %v file: %v", *ifacesFile, err)
-	}
-	if len(ifaces) == 0 {
+	log.Info.Println("Finding relevant network interfaces...")
+	ifs := booster.GetFilteredInterfaces(*interfaceName)
+	if len(ifs) == 0 {
 		log.Fatal("At least one network interface with an active internet connection is needed. Aborting")
 	}
-
-	sources := make([]core.Source, len(ifaces))
-	for i, v := range ifaces {
-		sources[i] = v
+	log.Info.Printf("Collected %d relevant interfaces:", len(ifs))
+	for i, v := range ifs {
+		log.Info.Printf("%d: %+v\n", i, v)
 	}
+	fmt.Fprintln(log.Out, "")
 
 	// Create a booster instance that uses the colelcted interfaces as sources
 	b := &booster.Booster{
 		Balancer: &core.Balancer{},
 	}
-	b.Put(sources...)
+	srcs := make([]core.Source, len(ifs))
+	for i, v := range ifs {
+		srcs[i] = v
+	}
+	b.Put(srcs...)
 
 	// Make the proxy use booster as dialer
 	p.DialWith(b)
@@ -120,18 +115,6 @@ func main() {
 	if err := p.ListenAndServe(ctx, *port); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func decodeIfacesFrom(r io.Reader) ([]*booster.IfaceSource, error) {
-	var v struct {
-		Version int `json:"version"`
-		Body []*booster.IfaceSource `json:"body"`
-	}
-	if err := json.NewDecoder(r).Decode(&v); err != nil {
-		return nil, err
-	}
-
-	return v.Body, nil
 }
 
 func captureSignals(cancel context.CancelFunc) {
