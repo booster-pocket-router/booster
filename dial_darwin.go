@@ -4,9 +4,9 @@ package booster
 
 import (
 	"context"
+	"errors"
 	"net"
 	"syscall"
-	"errors"
 
 	"github.com/booster-proj/log"
 	"golang.org/x/sys/unix"
@@ -27,15 +27,17 @@ func (i Interface) dialContext(ctx context.Context, network, address string) (ne
 			return nil, errors.New("Unable to parse CIDR from interface " + i.Name + ": " + err.Error())
 		}
 
-		if ip.To4() != nil {
+		if ip4 := ip.To4(); ip4 != nil {
 			// IPv4
 			var buf [4]byte
-			copy(buf[:], ip)
-
+			copy(buf[:], ip4[:4])
 			addr = &unix.SockaddrInet4{
 				Port: 0,
 				Addr: buf,
 			}
+
+			log.Debug.Printf("Socket address for interface %v: %+v", i.Name, addr)
+
 			break
 		}
 		// TODO(jecoz): Support ipv6
@@ -57,4 +59,3 @@ func (i Interface) dialContext(ctx context.Context, network, address string) (ne
 
 	return d.DialContext(ctx, network, address)
 }
-
