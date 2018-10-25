@@ -15,15 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// +build linux, darwin
-
 package booster
 
 import (
 	"context"
 	"net"
-	"sync"
 	"strings"
+	"sync"
 
 	"github.com/booster-proj/core"
 	"github.com/booster-proj/log"
@@ -75,7 +73,7 @@ func GetFilteredInterfaces(s string) []Interface {
 			continue
 		}
 
-		l = append(l, Interface{Interface:v})
+		l = append(l, Interface{Interface: v})
 	}
 
 	return l
@@ -115,11 +113,11 @@ func (i Interface) DialContext(ctx context.Context, network, address string) (ne
 	conn := &Conn{
 		Conn: c,
 		Add:  i.Add,
-		Ref: i.ID(),
+		Ref:  i.ID(),
 	}
 
 	n := conn.Add(1)
-	log.Debug.Printf("Opening connection (ref: %v) to(%v), left(%d)", conn.RemoteAddr, conn.Ref, n)
+	log.Debug.Printf("Opening connection (ref: %v) to(%v), left(%d)", conn.Ref, c.RemoteAddr(), n)
 
 	return conn, nil
 }
@@ -131,6 +129,7 @@ func (i Interface) ID() string {
 func (i Interface) Metrics() map[string]interface{} {
 	return make(map[string]interface{})
 }
+
 type Conn struct {
 	net.Conn
 	Ref string // Reference identifier
@@ -148,9 +147,8 @@ func (c *Conn) Close() error {
 	}
 
 	n := c.Add(-1)
-	log.Debug.Printf("Closing connection (ref: %v) to(%v), left(%d)", c.Ref, c.RemoteAddr, n)
+	log.Debug.Printf("Closing connection (ref: %v) to(%v), left(%d)", c.Ref, c.RemoteAddr(), n)
 	c.closed = true
 
 	return c.Conn.Close()
 }
-
