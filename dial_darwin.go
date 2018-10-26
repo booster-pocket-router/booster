@@ -8,7 +8,7 @@ import (
 	"net"
 	"syscall"
 
-	"github.com/booster-proj/log"
+	"upspin.io/log"
 	"golang.org/x/sys/unix"
 )
 

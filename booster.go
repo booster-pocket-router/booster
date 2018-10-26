@@ -23,8 +23,8 @@ import (
 	"strings"
 	"sync"
 
+	"upspin.io/log"
 	"github.com/booster-proj/core"
-	"github.com/booster-proj/log"
 )
 
 type Booster struct {

@@ -21,13 +21,12 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 
+	"upspin.io/log"
 	"github.com/booster-proj/booster"
 	"github.com/booster-proj/core"
-	"github.com/booster-proj/log"
 	"github.com/booster-proj/proxy"
 )
 
@@ -50,10 +49,8 @@ func main() {
 	log.Info.Printf("Version: %s, BuildTime: %s", Version, BuildTime)
 	if *verbose {
 		log.Info.Printf("Running in verbose mode")
-		log.SetLevel(log.DebugLevel)
+		log.SetLevel("debug")
 	}
-
-	fmt.Fprintln(log.Out, "")
 
 	if *rawProto == "" {
 		log.Fatal("\"proto\" flag is required. Run `--help` for more.")
@@ -90,7 +87,6 @@ func main() {
 	for i, v := range ifs {
 		log.Info.Printf("%d: %+v\n", i, v)
 	}
-	fmt.Fprintln(log.Out, "")
 
 	// Create a booster instance that uses the colelcted interfaces as sources
 	b := &booster.Booster{
