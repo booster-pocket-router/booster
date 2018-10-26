@@ -40,7 +40,7 @@ type Interface struct {
 	N int
 }
 
-func (i Interface) Add(val int) int {
+func (i *Interface) Add(val int) int {
 	i.mux.Lock()
 	defer i.mux.Unlock()
 
@@ -48,7 +48,7 @@ func (i Interface) Add(val int) int {
 	return i.N
 }
 
-func (i Interface) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+func (i *Interface) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	// Implementations of the `dialContext` function can be found
 	// in the {unix, darwin}_dial.go files.
 
@@ -69,11 +69,11 @@ func (i Interface) DialContext(ctx context.Context, network, address string) (ne
 	return conn, nil
 }
 
-func (i Interface) ID() string {
+func (i *Interface) ID() string {
 	return i.Name
 }
 
-func (i Interface) Metrics() map[string]interface{} {
+func (i *Interface) Metrics() map[string]interface{} {
 	return make(map[string]interface{})
 }
 
