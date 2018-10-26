@@ -31,23 +31,44 @@ type Booster struct {
 	*core.Balancer
 }
 
-func (b *Booster) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
-	src, err := b.Get()
-	if err != nil {
-		return nil, err
+func (b *Booster) DialContext(ctx context.Context, network, address string) (conn net.Conn, err error) {
+	bl := make([]core.Source, 0, b.Len()) // blacklisted sources
+
+	// If the dialing fails, keep on trying with the other sources until exaustion.
+	for i := 0; len(bl) < b.Len(); i++ {
+		var src core.Source
+		src, err = b.Get(bl...)
+		if err != nil {
+			// Fail directly if the balancer returns an error, as
+			// we do not have any source to use.
+			return
+		}
+
+		log.Debug.Printf("DialContext: Attempt #%d to connect to %v (source %v)", i, address, src.ID())
+
+		conn, err = src.DialContext(ctx, "tcp4", address)
+		if err != nil {
+			// Log this error, otherwise it will be silently skipped.
+			log.Error.Printf("Unable to dial connection to %v using source %v. Error: %v", address, src.ID(), err)
+			bl = append(bl, src)
+			continue
+		}
+
+		// Connection dialed successfully.
+		break
 	}
 
-	return src.DialContext(ctx, "tcp4", address)
+	return
 }
 
-func GetFilteredInterfaces(s string) []sources.Interface {
+func GetFilteredInterfaces(s string) []*sources.Interface {
 	ifs, err := net.Interfaces()
 	if err != nil {
 		log.Error.Printf("Unable to get interfaces: %v\n", err)
-		return []sources.Interface{}
+		return []*sources.Interface{}
 	}
 
-	l := make([]sources.Interface, 0, len(ifs))
+	l := make([]*sources.Interface, 0, len(ifs))
 
 	for _, v := range ifs {
 		log.Debug.Printf("Inspecting interface %+v\n", v)
@@ -73,7 +94,7 @@ func GetFilteredInterfaces(s string) []sources.Interface {
 			continue
 		}
 
-		l = append(l, sources.Interface{Interface: v})
+		l = append(l, &sources.Interface{Interface: v})
 	}
 
 	return l

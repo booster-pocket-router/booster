@@ -94,7 +94,7 @@ func main() {
 	}
 	srcs := make([]core.Source, len(ifs))
 	for i, v := range ifs {
-		srcs[i] = &v
+		srcs[i] = v
 	}
 	b.Put(srcs...)
 

@@ -36,11 +36,11 @@ func (i Interface) dialContext(ctx context.Context, network, address string) (ne
 				Addr: buf,
 			}
 
-			log.Debug.Printf("Socket address for interface %v: %+v", i.Name, addr)
-
 			break
 		}
 		// TODO(jecoz): Support ipv6
+		if ip16 := ip.To16(); ip16 != nil {
+		}
 	}
 
 	if addr == nil {
