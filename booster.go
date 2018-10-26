@@ -37,7 +37,7 @@ func (b *Booster) DialContext(ctx context.Context, network, address string) (net
 		return nil, err
 	}
 
-	return src.DialContext(ctx, network, address)
+	return src.DialContext(ctx, "tcp4", address)
 }
 
 func GetFilteredInterfaces(s string) []sources.Interface {
