@@ -26,5 +26,5 @@ How I usually run `booster` on macOS:
 ## Latest results
 ![](https://www.speedtest.net/result/7749291947.png "WIFI")
 ![](https://www.speedtest.net/result/7749297440.png "WIFI + Cellular(TIM)")
-![](https://www.speedtest.net/result/7749302563.png "WIFI + Cellular(TIM) + Cellular(Wind)")
+![](https://www.speedtest.net/result/7749302563.png "WIFI + Cellular(TIM) + Cellular(Wind) 🤩🎉")
 
