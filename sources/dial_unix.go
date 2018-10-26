@@ -1,14 +1,14 @@
 // +build linux
 
-package booster
+package sources
 
 import (
 	"context"
 	"net"
 	"syscall"
 
-	"upspin.io/log"
 	"golang.org/x/sys/unix"
+	"upspin.io/log"
 )
 
 func (i Interface) dialContext(ctx context.Context, network, address string) (net.Conn, error) {

@@ -24,10 +24,10 @@ import (
 	"os"
 	"os/signal"
 
-	"upspin.io/log"
 	"github.com/booster-proj/booster"
 	"github.com/booster-proj/core"
 	"github.com/booster-proj/proxy"
+	"upspin.io/log"
 )
 
 // Version and BuildTime are filled in during build by the Makefile

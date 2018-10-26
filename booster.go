@@ -21,10 +21,10 @@ import (
 	"context"
 	"net"
 	"strings"
-	"sync"
 
-	"upspin.io/log"
+	"github.com/booster-proj/booster/sources"
 	"github.com/booster-proj/core"
+	"upspin.io/log"
 )
 
 type Booster struct {
@@ -40,14 +40,14 @@ func (b *Booster) DialContext(ctx context.Context, network, address string) (net
 	return src.DialContext(ctx, network, address)
 }
 
-func GetFilteredInterfaces(s string) []Interface {
+func GetFilteredInterfaces(s string) []sources.Interface {
 	ifs, err := net.Interfaces()
 	if err != nil {
 		log.Error.Printf("Unable to get interfaces: %v\n", err)
-		return []Interface{}
+		return []sources.Interface{}
 	}
 
-	l := make([]Interface, 0, len(ifs))
+	l := make([]sources.Interface, 0, len(ifs))
 
 	for _, v := range ifs {
 		log.Debug.Printf("Inspecting interface %+v\n", v)
@@ -73,82 +73,8 @@ func GetFilteredInterfaces(s string) []Interface {
 			continue
 		}
 
-		l = append(l, Interface{Interface: v})
+		l = append(l, sources.Interface{Interface: v})
 	}
 
 	return l
-}
-
-// Interface is a wrapper around net.Interface and
-// implements the core.Source interface, i.e. is it
-// capable of providing network connections through
-// the device it is referring to.
-type Interface struct {
-	net.Interface
-
-	mux sync.Mutex
-	// N is the number of network connections that
-	// the interface is currenlty handling.
-	N int
-}
-
-func (i Interface) Add(val int) int {
-	i.mux.Lock()
-	defer i.mux.Unlock()
-
-	i.N += val
-	return i.N
-}
-
-func (i Interface) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
-	// Implementations of the `dialContext` function can be found
-	// in the {unix, darwin}_dial.go files.
-
-	// TODO(jecoz): add windows implementation
-	c, err := i.dialContext(ctx, network, address)
-	if err != nil {
-		return nil, err
-	}
-
-	conn := &Conn{
-		Conn: c,
-		Add:  i.Add,
-		Ref:  i.ID(),
-	}
-
-	n := conn.Add(1)
-	log.Debug.Printf("Opening connection (ref: %v) to(%v), left(%d)", conn.Ref, c.RemoteAddr(), n)
-
-	return conn, nil
-}
-
-func (i Interface) ID() string {
-	return i.Name
-}
-
-func (i Interface) Metrics() map[string]interface{} {
-	return make(map[string]interface{})
-}
-
-type Conn struct {
-	net.Conn
-	Ref string // Reference identifier
-	Add func(val int) int
-
-	closed bool
-}
-
-func (c *Conn) Close() error {
-	if c.closed {
-		// Multiple parts of the code might try to close the connection. Better be sure
-		// that the underlying connection gets closed at some point, leave that code and
-		// avoid repetitions here.
-		return nil
-	}
-
-	n := c.Add(-1)
-	log.Debug.Printf("Closing connection (ref: %v) to(%v), left(%d)", c.Ref, c.RemoteAddr(), n)
-	c.closed = true
-
-	return c.Conn.Close()
 }
