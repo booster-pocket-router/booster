@@ -101,6 +101,28 @@ func TestGet_roundRobin(t *testing.T) {
 	}
 }
 
+func TestGetBlacklist_roundRobin(t *testing.T) {
+	b := &core.Balancer{}
+
+	s0 := &mock{"s0"}
+	s1 := &mock{"s1"}
+
+	b.Put(s0, s1)
+
+	s, _ := b.Get()
+	if s.ID() != "s0" {
+		t.Fatalf("Unexpected source ID: wanted %v, found %v", s0.ID(), s1.ID())
+	}
+
+	s2, err := b.Get(s1)
+	if err != nil {
+		t.Fatalf("Unexpected error while getting source: %v", err)
+	}
+	if s2.ID() != "s0" {
+		t.Fatalf("Unexpected source ID: wanted %v, found %v, blacklisted source %v", s0.ID(), s2.ID(), s1.ID())
+	}
+}
+
 func TestDel(t *testing.T) {
 	b := &core.Balancer{}
 

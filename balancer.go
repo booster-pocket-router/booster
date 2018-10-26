@@ -59,22 +59,42 @@ type Balancer struct {
 	Strategy
 }
 
-var errEmptyRing = errors.New("empty source ring. Use Put to provide at least one source to the balancer")
-
 // Get returns a Source from the balancer's source list using the predefined Strategy.
 // If no Strategy was provided, Get returns a Source using RoundRobin.
-func (b *Balancer) Get() (Source, error) {
+func (b *Balancer) Get(blacklist ...Source) (Source, error) {
 	b.mux.Lock()
 	defer b.mux.Unlock()
 
 	if b.r == nil {
-		return nil, errEmptyRing
+		return nil, errors.New("Empty source ring. Use Put to provide at least one source to the balancer")
 	}
 	if b.Strategy == nil {
 		b.Strategy = RoundRobin
 	}
 
-	return b.Strategy(b.r)
+	bl := make(map[string]interface{})
+	for _, v := range blacklist {
+		bl[v.ID()] = nil
+	}
+
+	var s Source
+	var err error
+	for i := 0; i < b.r.Len(); i++ {
+		s, err = b.Strategy(b.r)
+		if err != nil {
+			// Avoid retring if the strategy returns an error.
+			return nil, err
+		}
+
+		// Check if the source is contained in the blacklist.
+		if _, ok := bl[s.ID()]; ok {
+			// Skip this source
+			continue
+		}
+		break
+	}
+
+	return s, nil
 }
 
 // Put adds ss as sources to the current balancer ring. If ss.len() == 0, Put silently returns,
