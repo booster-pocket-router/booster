@@ -57,7 +57,6 @@ func main() {
 	}
 
 	// Configure proxy server
-
 	proto, err := proxy.ParseProto(*rawProto)
 	if err != nil {
 		log.Fatal(err)
@@ -77,7 +76,6 @@ func main() {
 	}
 
 	// Find network interfaces
-
 	log.Info.Println("Finding relevant network interfaces...")
 	ifs := booster.GetFilteredInterfaces(*interfaceName)
 	if len(ifs) == 0 {
