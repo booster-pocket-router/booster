@@ -71,6 +71,9 @@ func (b *Balancer) Get(ctx context.Context, blacklist ...Source) (Source, error)
 	if b.Strategy == nil {
 		b.Strategy = RoundRobin
 	}
+	if len(blacklist) == 0 {
+		return b.Strategy(ctx, b.r)
+	}
 
 	bl := make(map[string]interface{})
 	for _, v := range blacklist {
