@@ -37,7 +37,7 @@ func (b *Booster) DialContext(ctx context.Context, network, address string) (con
 	// If the dialing fails, keep on trying with the other sources until exaustion.
 	for i := 0; len(bl) < b.Len(); i++ {
 		var src core.Source
-		src, err = b.Get(bl...)
+		src, err = b.Get(ctx, bl...)
 		if err != nil {
 			// Fail directly if the balancer returns an error, as
 			// we do not have any source to use.
