@@ -41,10 +41,10 @@ type Source interface {
 }
 
 // Strategy chooses a source from a ring of sources.
-type Strategy func(r *Ring) (Source, error)
+type Strategy func(ctx context.Context, r *Ring) (Source, error)
 
 // RoundRobin is a naive strategy that iterates and returns each element contained in r.
-func RoundRobin(r *Ring) (Source, error) {
+func RoundRobin(ctx context.Context, r *Ring) (Source, error) {
 	defer r.Next()
 	return r.Source(), nil
 }
@@ -61,7 +61,7 @@ type Balancer struct {
 
 // Get returns a Source from the balancer's source list using the predefined Strategy.
 // If no Strategy was provided, Get returns a Source using RoundRobin.
-func (b *Balancer) Get(blacklist ...Source) (Source, error) {
+func (b *Balancer) Get(ctx context.Context, blacklist ...Source) (Source, error) {
 	b.mux.Lock()
 	defer b.mux.Unlock()
 
@@ -80,7 +80,7 @@ func (b *Balancer) Get(blacklist ...Source) (Source, error) {
 	var s Source
 	var err error
 	for i := 0; i < b.r.Len(); i++ {
-		s, err = b.Strategy(b.r)
+		s, err = b.Strategy(ctx, b.r)
 		if err != nil {
 			// Avoid retring if the strategy returns an error.
 			return nil, err

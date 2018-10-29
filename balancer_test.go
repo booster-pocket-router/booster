@@ -72,7 +72,7 @@ func TestPut(t *testing.T) {
 func TestGet_roundRobin(t *testing.T) {
 	b := &core.Balancer{}
 
-	if _, err := b.Get(); err == nil {
+	if _, err := b.Get(context.TODO()); err == nil {
 		t.Fatal("Unexpected nil error with empty balancer")
 	}
 
@@ -90,7 +90,7 @@ func TestGet_roundRobin(t *testing.T) {
 
 	for i, v := range tt {
 		// Get sources using the default round robin strategy.
-		s, err := b.Get()
+		s, err := b.Get(context.TODO())
 		if err != nil {
 			t.Fatalf("Unexpected error while getting source: %v. %v", i, err)
 		}
@@ -109,12 +109,12 @@ func TestGetBlacklist_roundRobin(t *testing.T) {
 
 	b.Put(s0, s1)
 
-	s, _ := b.Get()
+	s, _ := b.Get(context.TODO())
 	if s.ID() != "s0" {
 		t.Fatalf("Unexpected source ID: wanted %v, found %v", s0.ID(), s1.ID())
 	}
 
-	s2, err := b.Get(s1)
+	s2, err := b.Get(context.TODO(), s1)
 	if err != nil {
 		t.Fatalf("Unexpected error while getting source: %v", err)
 	}
