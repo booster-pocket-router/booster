@@ -17,7 +17,7 @@ make test # Runs tests
 make # Creates the bin/booster executable into the current directory
 ```   
 
-`booster` needs to retrieve the network interfaces that provide a network connection to work. When it starts, it retrieves them (it is also possible to filter the network interfaces by name above the other default filers, using the option `iname`. On macOS I always set it to "en"). Afterwards it spawns a proxy serverusing the protocol specified by the `proto` flag (just use **socks5**), which will fetch the data from the sources provided, according to some strategy. At the moment we have only implemented a naive round robin fashion.  
+`booster` needs to retrieve the network interfaces that provide a network connection to work. When it starts, it retrieves them (it is also possible to filter the network interfaces by name above the other default filers, using the option `iname`. On macOS I always set it to "en"). Afterwards it spawns a proxy serverusing the protocol specified by the `proto` flag (just use **socks5** for now), which will fetch the data from the sources provided, according to some strategy. At the moment we have only implemented a naive round robin fashion.  
   
 ##### Run:
 ``` bash
