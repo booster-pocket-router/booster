@@ -14,3 +14,7 @@ dist/
 *.out
 *.json
 
+# Misc
+.DS_Store
+*.swp
+
