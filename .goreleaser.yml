@@ -25,3 +25,24 @@ sign:
 
 snapshot:
   name_template: "SNAPSHOT-{{ .Commit }}"
+
+snapcraft:
+  publish: false
+
+  # Single-line elevator pitch for your amazing snap.
+  # 79 char long at most.
+  summary: Strategy-based network interface balancer.
+
+  # This the description of your snap. You have a paragraph or two to tell the
+  # most important story about your snap. Keep it under 100 words though,
+  # we live in tweetspace and your description wants to look good in the snap
+  # store.
+  description: |
+    When **booster** spawns, it identifies the network interfaces available in the system that provide an active internet connection. It then starts a proxy server that speaks either **socks5** or **http**. According to some particular **strategy**, the server is able to **distribute** the incoming network traffic across the network interfaces collected.
+    Source code is located at https://github.com/booster-proj/booster.
+
+  grade: devel
+  confinement: devmode
+
+  # Note: Each binary built by GoReleaser is an app inside the snap. Add the "apps"
+  # section to change this behaviour.
