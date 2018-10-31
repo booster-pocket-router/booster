@@ -42,6 +42,7 @@ type Source interface {
 	// Metrics provide information about the past usage of the source.
 	Metrics() map[string]interface{}
 
+	Dialer
 }
 
 // Strategy chooses a source from a ring of sources.
@@ -173,7 +174,6 @@ func (b *Balancer) Do(f func(Source)) {
 	}
 	b.r.Do(f)
 }
-
 
 // Len reports the size of the set of sources stored in the balancer.
 func (b *Balancer) Len() int {

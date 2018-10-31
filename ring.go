@@ -42,7 +42,6 @@ func NewRingSources(ss ...Source) *Ring {
 	return r
 }
 
-
 // Source retrives the Value of the ring at this position.
 func (r *Ring) Source() Source {
 	if v, ok := r.Ring.Value.(Source); ok {
