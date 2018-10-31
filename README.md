@@ -12,7 +12,7 @@ At the moment it is only possible to build `booster` from source. You'll need to
   
 Afterwards, type this commands into your command line:  
 ``` bash
-git clone https://github.com/booster-proj/booster.git # Clones this repository into your current directory
+git clone https://github.com/booster-proj/booster.git # Clones this repository into your current dir
 make test # Runs tests
 make # Creates the bin/booster executable into the current directory
 ```   
