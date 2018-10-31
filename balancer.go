@@ -26,6 +26,12 @@ import (
 	"sync"
 )
 
+// Dialer is a wrapper around the DialContext function.
+type Dialer interface {
+	// DialContext dials connections with address using the specified network.
+	DialContext(ctx context.Context, network, address string) (net.Conn, error)
+}
+
 // Source represents an entity that is able to provide network connections and
 // keep a set of metrics regarding the operations that is performing, or has
 // performed.
@@ -36,8 +42,6 @@ type Source interface {
 	// Metrics provide information about the past usage of the source.
 	Metrics() map[string]interface{}
 
-	// DialContext dials connections with address using the specified network.
-	DialContext(ctx context.Context, network, address string) (net.Conn, error)
 }
 
 // Strategy chooses a source from a ring of sources.
