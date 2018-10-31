@@ -1,28 +1,27 @@
-# This is an example goreleaser.yaml file with some sane defaults.
-# Make sure to check the documentation at http://goreleaser.com
 before:
   hooks:
-    # you may remove this if you don't use vgo
-    - go mod download
-    # you may remove this if you don't need go generate
-    - go generate ./...
+    - env GO111MODULE=on go test ./...
 builds:
-- env:
-  - CGO_ENABLED=0
-archive:
-  replacements:
-    darwin: Darwin
-    linux: Linux
-    windows: Windows
-    386: i386
-    amd64: x86_64
-checksum:
-  name_template: 'checksums.txt'
+  - 
+    env:
+      - GO111MODULE=on
+    main: cmd/booster/main.go
+    binary: booster
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - 386
+      - arm
+      - arm64
+    goarm:
+      - 6
+      - 7
+    ldflags: -s -w -X main.version=v{{.Version}} -X main.commit={{.ShortCommit}} -X main.buildTime={{.Date}}
+
+sign:
+  artifacts: checksum
+
 snapshot:
-  name_template: "{{ .Tag }}-next"
-changelog:
-  sort: asc
-  filters:
-    exclude:
-    - '^docs:'
-    - '^test:'
+  name_template: "SNAPSHOT-{{ .Commit }}"
