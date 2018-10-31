@@ -50,7 +50,7 @@ func (i *Interface) Add(val int) int {
 
 func (i *Interface) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	// Implementations of the `dialContext` function can be found
-	// in the {unix, darwin}_dial.go files.
+	// in the {unix, linux}_dial.go files.
 
 	c, err := i.dialContext(ctx, network, address)
 	if err != nil {
