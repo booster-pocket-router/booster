@@ -25,6 +25,7 @@ import (
 	"os/signal"
 
 	"github.com/booster-proj/booster"
+	"github.com/booster-proj/booster/listener"
 	"github.com/booster-proj/core"
 	"github.com/booster-proj/proxy"
 	"upspin.io/log"
@@ -78,7 +79,7 @@ func main() {
 
 	// Find network interfaces
 	log.Info.Println("Finding relevant network interfaces...")
-	ifs := booster.GetFilteredInterfaces(*interfaceName)
+	ifs := listener.GetFilteredInterfaces(*interfaceName)
 	if len(ifs) == 0 {
 		log.Fatal("At least one network interface with an active internet connection is needed. Aborting")
 	}
@@ -88,9 +89,9 @@ func main() {
 	}
 
 	// Create a booster instance that uses the colelcted interfaces as sources
-	b := &booster.Booster{
-		Balancer: &core.Balancer{},
-	}
+	b := new(core.Balancer)
+	d := booster.New(b)
+
 	srcs := make([]core.Source, len(ifs))
 	for i, v := range ifs {
 		srcs[i] = v
@@ -98,7 +99,7 @@ func main() {
 	b.Put(srcs...)
 
 	// Make the proxy use booster as dialer
-	p.DialWith(b)
+	p.DialWith(d)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
