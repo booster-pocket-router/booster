@@ -1,6 +1,7 @@
 VERSION          := $(shell git describe --tags --always --dirty="-dev")
+COMMIT           := $(shell git rev-parse --short HEAD)
 DATE             := $(shell date -u '+%Y-%m-%d-%H%M UTC')
-VERSION_FLAGS    := -ldflags='-X "main.Version=$(VERSION)" -X "main.BuildTime=$(DATE)"'
+VERSION_FLAGS    := -ldflags='-X "main.version=$(VERSION)" -X "main.commit=$(COMMIT)" -X "main.buildTime=$(DATE)"'
 
 #V := 1 # Verbose
 Q := $(if $V,,@)
@@ -10,6 +11,7 @@ gofiles = $(shell ( cd $(CURDIR) && find . -iname \*.go ))
 
 arch = "$(if $(GOARCH),_$(GOARCH)/,/)"
 bind = "$(CURDIR)/bin/$(GOOS)$(arch)"
+go = $(env GO111MODULE=on go)
 
 .PHONY: all
 all: booster

@@ -32,8 +32,9 @@ import (
 
 // Version and BuildTime are filled in during build by the Makefile
 var (
-	Version   = "N/A"
-	BuildTime = "N/A"
+	version   = "N/A"
+	commit    = "N/A"
+	buildTime = "N/A"
 )
 
 var port = flag.Int("port", 1080, "Server listening port")
@@ -46,7 +47,7 @@ func main() {
 	// Parse arguments
 	flag.Parse()
 
-	log.Info.Printf("Version: %s, BuildTime: %s", Version, BuildTime)
+	log.Info.Printf("%s, commit: %s, built at: %s", version, commit, buildTime)
 	if *verbose {
 		log.Info.Printf("Running in verbose mode")
 		log.SetLevel("debug")
