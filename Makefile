@@ -31,3 +31,7 @@ test:
 .PHONY: format
 format:
 	$Q gofmt -w $(gofiles)
+
+.PHONY: release
+release:
+	$Q sh scripts/release.sh
