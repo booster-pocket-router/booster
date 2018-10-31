@@ -33,6 +33,6 @@ bin/booster -iname=en -proto=socks5
 ```   
 Last:  
  - System Preferences > Network > Advanced... > Proxies  
- - select: SOCKS Proxy, localhost : { port from previous command's output, by default **1080** }   
+ - select: `SOCKS Proxy`, type: `localhost : 1080` (or wherever `booster`'s proxy is listening on)   
  - https://www.speedtest.net 🤓
 
