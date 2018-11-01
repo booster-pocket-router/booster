@@ -112,8 +112,7 @@ func (b *Balancer) Get(ctx context.Context, blacklist ...Source) (Source, error)
 // If the balancer does not have a ring yet, the new ring will be used, making it point to
 // the first source provided in the list.
 func (b *Balancer) Put(ss ...Source) {
-	n := len(ss)
-	if n == 0 {
+	if len(ss) == 0 {
 		return
 	}
 
@@ -140,6 +139,10 @@ func (b *Balancer) Put(ss ...Source) {
 
 // Del removes ss from the list of sources stored by the balancer.
 func (b *Balancer) Del(ss ...Source) {
+	if len(ss) == 0 || b.r == nil {
+		return
+	}
+
 	// Create a map of sources that have to be deleted (lookup O(1))
 	m := make(map[string]Source)
 	for _, v := range ss {
