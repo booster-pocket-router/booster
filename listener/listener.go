@@ -19,18 +19,19 @@ package listener
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"strings"
-	"fmt"
 	"time"
 
 	"github.com/booster-proj/booster/sources"
+	"github.com/booster-proj/core"
 	"upspin.io/log"
 )
 
 type Storage interface {
-	Put(... interface { ID() string })
-	Del(... interface { ID() string })
+	Put(...core.Source)
+	Del(...core.Source)
 }
 
 type Listener struct {
@@ -41,8 +42,8 @@ func New(s Storage) *Listener {
 	return &Listener{s}
 }
 
-var poolInterval = time.Second*5
-var poolTimeout = time.Second*2
+var poolInterval = time.Second * 5
+var poolTimeout = time.Second * 2
 
 // Err is a Listener's critical error.
 type Err struct {
