@@ -89,9 +89,6 @@ func (l *Listener) Run(ctx context.Context) error {
 
 			// TODO: here the listener as an updated state after a
 			// successfull pool.
-
-			// Wait a fixe
-			<-time.After(poolInterval)
 		}
 	}
 }
