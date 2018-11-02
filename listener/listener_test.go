@@ -52,7 +52,7 @@ func (s *storage) Put(ss ...core.Source) {
 func (s *storage) Del(ss ...core.Source) {
 }
 
-func TestRun(t *testing.T) {
+func TestRun_cancel(t *testing.T) {
 	s := new(storage)
 	l := listener.New(s)
 	c := make(chan error)

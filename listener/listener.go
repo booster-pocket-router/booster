@@ -1,5 +1,4 @@
-/*
-Copyright (C) 2018 KIM KeepInMind GmbH/srl
+/* Copyright (C) 2018 KIM KeepInMind GmbH/srl
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -34,12 +33,23 @@ type Storage interface {
 	Del(...core.Source)
 }
 
+type state struct {
+	prev map[string]core.Source
+	add  []core.Source
+	del  []core.Source
+
+	updatedAt time.Time
+}
+
 type Listener struct {
-	s Storage
+	Find func(context.Context) ([]core.Source, error)
+
+	s     Storage
+	state *state
 }
 
 func New(s Storage) *Listener {
-	return &Listener{s}
+	return &Listener{s: s, Find: findInterfaces}
 }
 
 var poolInterval = time.Second * 5
@@ -60,17 +70,38 @@ func filterErr(err error) error {
 	if _err, ok := err.(*Err); ok {
 		return _err
 	}
+	if err != nil {
+		log.Error.Printf("Listener error: %v", err)
+	}
 
-	log.Error.Printf("Listener error: %v", err)
 	return nil
 }
 
 func (l *Listener) Run(ctx context.Context) error {
-	// Pool first
-	_ctx, cancel := context.WithTimeout(ctx, poolTimeout)
-	defer cancel()
+	pool := func() error {
+		_ctx, cancel := context.WithTimeout(ctx, poolTimeout)
+		defer cancel()
 
-	if err := filterErr(l.Pool(_ctx)); err != nil {
+		if err := filterErr(l.Pool(_ctx)); err != nil {
+			return err
+		}
+
+		log.Debug.Printf("Listener: state after pool: %+v", l.state)
+
+		if len(l.state.del) > 0 {
+			log.Info.Printf("Listener: deliting %d sources", len(l.state.del))
+			l.s.Del(l.state.del...)
+		}
+		if len(l.state.add) > 0 {
+			log.Info.Printf("Listener: adding %d sources", len(l.state.add))
+			l.s.Put(l.state.add...)
+		}
+
+		return nil
+	}
+
+	// Pool first
+	if err := pool(); err != nil {
 		return err
 	}
 
@@ -80,25 +111,74 @@ func (l *Listener) Run(ctx context.Context) error {
 			// Exit in case of context cancelation
 			return ctx.Err()
 		case <-time.After(poolInterval):
-			_ctx, _cancel := context.WithTimeout(ctx, poolTimeout)
-			if err := filterErr(l.Pool(_ctx)); err != nil {
-				_cancel()
+			if err := pool(); err != nil {
 				return err
 			}
-			_cancel()
-
-			// TODO: here the listener as an updated state after a
-			// successfull pool.
 		}
 	}
 }
 
 func (l *Listener) Pool(ctx context.Context) error {
-	return &Err{fmt.Errorf("Pool is not yet implemented")}
+	log.Debug.Printf("Listener: pooling sources...")
+
+	if l.Find == nil {
+		return &Err{fmt.Errorf("Listener requires a Find function to retrieve some sources")}
+	}
+	if l.state == nil {
+		l.state = &state{prev: make(map[string]core.Source)}
+	}
+
+	cur, err := l.Find(ctx)
+	if err != nil {
+		return err
+	}
+	log.Debug.Printf("Pool: found %d sources", len(cur))
+
+	curm := make(map[string]core.Source)
+
+	// cleanup previous state
+	del := []core.Source{}
+	add := []core.Source{}
+
+	for _, v := range cur {
+		curm[v.ID()] = v
+
+		if _, ok := l.state.prev[v.ID()]; !ok {
+			// `v` is in cur but not in prev. Needs to be added.
+			log.Debug.Printf("Pool: add source: %s", v.ID())
+			add = append(add, v)
+		}
+	}
+	for k, v := range l.state.prev {
+		if _, ok := curm[k]; !ok {
+			// `v` is in prev but not in cur. Has to be deleted.
+			log.Debug.Printf("Pool: del source: %s", v.ID())
+			del = append(del, v)
+		}
+	}
+
+	l.state.prev = curm
+	l.state.del = make([]core.Source, len(del))
+	copy(l.state.del, del)
+	l.state.add = make([]core.Source, len(add))
+	copy(l.state.add, add)
+
+	log.Debug.Printf("Pool: new state: %+v", l.state)
+
+	return nil
 }
 
-// TODO: Remove
-func GetFilteredInterfaces(s string) []*sources.Interface {
+func findInterfaces(ctx context.Context) ([]core.Source, error) {
+	ifs := getFilteredInterfaces("en")
+	ss := make([]core.Source, len(ifs))
+	for i, v := range ifs {
+		ss[i] = v
+	}
+
+	return ss, nil
+}
+
+func getFilteredInterfaces(s string) []*sources.Interface {
 	ifs, err := net.Interfaces()
 	if err != nil {
 		log.Error.Printf("Unable to get interfaces: %v\n", err)

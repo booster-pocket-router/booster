@@ -28,6 +28,7 @@ import (
 	"github.com/booster-proj/booster/listener"
 	"github.com/booster-proj/core"
 	"github.com/booster-proj/proxy"
+	"golang.org/x/sync/errgroup"
 	"upspin.io/log"
 )
 
@@ -48,7 +49,7 @@ func main() {
 	// Parse arguments
 	flag.Parse()
 
-	log.Info.Printf("%s, commit: %s, built at: %s", version, commit, buildTime)
+	log.Info.Printf("version: %s, commit: %s, built at: %s", version, commit, buildTime)
 	if *verbose {
 		log.Info.Printf("Running in verbose mode")
 		log.SetLevel("debug")
@@ -58,7 +59,6 @@ func main() {
 		log.Fatal("\"proto\" flag is required. Run `--help` for more.")
 	}
 
-	// Configure proxy server
 	proto, err := proxy.ParseProto(*rawProto)
 	if err != nil {
 		log.Fatal(err)
@@ -77,38 +77,30 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Find network interfaces
-	log.Info.Println("Finding relevant network interfaces...")
-	ifs := listener.GetFilteredInterfaces(*interfaceName)
-	if len(ifs) == 0 {
-		log.Fatal("At least one network interface with an active internet connection is needed. Aborting")
-	}
-	log.Info.Printf("Collected %d relevant interfaces:", len(ifs))
-	for i, v := range ifs {
-		log.Info.Printf("%d: %+v\n", i, v)
-	}
-
 	// Create a booster instance that uses the colelcted interfaces as sources
 	b := new(core.Balancer)
+	l := listener.New(b)
 	d := booster.New(b)
-
-	srcs := make([]core.Source, len(ifs))
-	for i, v := range ifs {
-		srcs[i] = v
-	}
-	b.Put(srcs...)
 
 	// Make the proxy use booster as dialer
 	p.DialWith(d)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	g, ctx := errgroup.WithContext(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// Capture OS signals
 	captureSignals(cancel)
 
-	log.Info.Printf("Booster proxy (%v) listening on :%d, using %d sources", p.Protocol(), *port, b.Len())
-	if err := p.ListenAndServe(ctx, *port); err != nil {
+	g.Go(func() error {
+		log.Info.Printf("Listener started")
+		return l.Run(ctx)
+	})
+	g.Go(func() error {
+		log.Info.Printf("Booster proxy (%v) listening on :%d", p.Protocol(), *port)
+		return p.ListenAndServe(ctx, *port)
+	})
+
+	if err := g.Wait(); err != nil {
 		log.Fatal(err)
 	}
 }
