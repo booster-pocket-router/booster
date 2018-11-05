@@ -1,7 +1,6 @@
-<center>![booster](https://raw.githubusercontent.com/booster-proj/booster/master/assets/banner.png)</center>
-
----
-Network interface balancer
+<p align="center">
+   <img src="https://raw.githubusercontent.com/booster-proj/booster/master/assets/banner.png" alt="Booster" width="200" />
+</p>
 
 [![GoDoc](https://godoc.org/github.com/booster-proj/booster?status.svg)](https://godoc.org/github.com/booster-proj/booster)
 
