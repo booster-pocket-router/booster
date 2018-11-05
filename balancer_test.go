@@ -68,6 +68,18 @@ func TestPut(t *testing.T) {
 	})
 }
 
+func TestPut_empty(t *testing.T) {
+	b := &core.Balancer{}
+	s := &mock{"s0"}
+
+	t.Logf("Put %v into balancer(size: %d, value: %+v)", s, b.Len(), b)
+	b.Put(s)
+	b.Del(s)
+
+	t.Logf("Put %v into balancer(size: %d, value: %+v)", s, b.Len(), b)
+	b.Put(s)
+}
+
 // Test balancer with its default round robin strategy.
 func TestGet_roundRobin(t *testing.T) {
 	b := &core.Balancer{}
@@ -147,3 +159,4 @@ func TestDel(t *testing.T) {
 		}
 	})
 }
+

@@ -122,7 +122,7 @@ func (b *Balancer) Put(ss ...Source) {
 	// Create a new ring containing the new sources.
 	s := NewRingSources(ss...)
 
-	if b.r == nil {
+	if b.r == nil || b.r.Len() == 0 {
 		// Initialize the ring if it's still empty
 		b.r = s
 		return
