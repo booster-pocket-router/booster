@@ -41,8 +41,6 @@ var (
 
 var port = flag.Int("port", 1080, "Server listening port")
 var rawProto = flag.String("proto", "", "Proxy protocol used. Available protocols: http, https, socks5.")
-var interfaceName = flag.String("iname", "", "Collect only interfaces which name contains \"name\"")
-
 var verbose = flag.Bool("verbose", false, "Enable verbose mode")
 
 func main() {
