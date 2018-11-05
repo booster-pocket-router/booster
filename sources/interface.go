@@ -40,6 +40,10 @@ type Interface struct {
 	N int
 }
 
+func (i *Interface) String() string {
+	return i.ID()
+}
+
 func (i *Interface) Add(val int) int {
 	i.mux.Lock()
 	defer i.mux.Unlock()

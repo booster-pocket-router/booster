@@ -41,8 +41,10 @@ type state struct {
 	updatedAt time.Time
 }
 
+type Provider func(context.Context) ([]core.Source, error)
+
 type Listener struct {
-	Find func(context.Context) ([]core.Source, error)
+	Find Provider
 
 	s     Storage
 	state *state
@@ -89,11 +91,11 @@ func (l *Listener) Run(ctx context.Context) error {
 		log.Debug.Printf("Listener: state after pool: %+v", l.state)
 
 		if len(l.state.del) > 0 {
-			log.Info.Printf("Listener: deliting %d sources", len(l.state.del))
+			log.Info.Printf("Listener: deleting %v", l.state.del)
 			l.s.Del(l.state.del...)
 		}
 		if len(l.state.add) > 0 {
-			log.Info.Printf("Listener: adding %d sources", len(l.state.add))
+			log.Info.Printf("Listener: adding %v", l.state.add)
 			l.s.Put(l.state.add...)
 		}
 
