@@ -54,7 +54,7 @@ func New(s Storage) *Listener {
 	return &Listener{s: s, Find: findInterfaces}
 }
 
-var poolInterval = time.Second * 5
+var poolInterval = time.Second * 3
 var poolTimeout = time.Second * 2
 
 // Err is a Listener's critical error.
