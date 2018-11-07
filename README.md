@@ -7,7 +7,7 @@
 ## Abstract
 While more and more people today have a fast Internet connection, there are plenty of other people that do not. The aim of this project is to create a solution that combines multiple Internet access points (such as Wifi or mobile devices) into one single faster Internet connection, that it is easy to use, and fast to configure.
 
-## Installation & Usage
+## Installation
 #### Binary
 Pick your [release](https://github.com/booster-proj/booster/releases).
 #### From source
@@ -21,7 +21,8 @@ make test # Test
 make # Build
 ```
 
-`booster` needs to retrieve the network interfaces that provide a network connection to work. When it starts, it retrieves them (it is also possible to filter the network interfaces by name above the other default filers, using the option `iname`. On macOS I always set it to "en"). Afterwards it spawns a proxy serverusing the protocol specified by the `proto` flag (just use **socks5** for now), which will fetch the data from the sources provided, according to some strategy. At the moment we have only implemented a naive round robin fashion.
+## Usage
+When `booster` spawns, it identifies the network interfaces available in the system that provide an active internet connection. It then starts a proxy server that speaks either **socks5** or **http**. According to some particular **strategy**, the server is able to **distribute** the incoming network traffic across the network interfaces collected.
 
 #### Run:
 ``` bash
@@ -33,7 +34,7 @@ Setup:
 I plug my iPhone 5s (with tethering enabled, iOS 12) into my MacBook Pro (macOS 10.14),
 Run:
 ``` bash
-bin/booster -iname=en -proto=socks5
+bin/booster -proto=socks5
 ```
 Last:
  - System Preferences > Network > Advanced... > Proxies
