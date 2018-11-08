@@ -26,7 +26,7 @@ snapshot:
   name_template: "SNAPSHOT-{{ .ShortCommit }}"
 
 snapcraft:
-  publish: true
+  publish: false
 
   # Single-line elevator pitch for your amazing snap.
   # 79 char long at most.
