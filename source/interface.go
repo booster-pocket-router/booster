@@ -15,9 +15,10 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// Package sources provides implementations of entities, such as network
-// interfaces, that are able to create network connections.
-package sources
+// Package source provides implementations of entities, such as network
+// interfaces, that are able to create network connections, i.e. are
+// "sources" of Internet.
+package source
 
 import (
 	"context"
@@ -33,6 +34,10 @@ import (
 // the device it is referring to.
 type Interface struct {
 	net.Interface
+
+	// If ErrHook is not nil, it is called each time that the
+	// dialer is not able to create a network connection.
+	ErrHook func(ref, network, address string, err error)
 
 	mux sync.Mutex
 	// N is the number of network connections that
@@ -58,6 +63,9 @@ func (i *Interface) DialContext(ctx context.Context, network, address string) (n
 
 	c, err := i.dialContext(ctx, network, address)
 	if err != nil {
+		if f := i.ErrHook; f != nil {
+			f(i.ID(), network, address, err)
+		}
 		return nil, err
 	}
 

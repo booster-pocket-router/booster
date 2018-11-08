@@ -18,12 +18,10 @@ package listener
 
 import (
 	"context"
-	"fmt"
-	"net"
-	"strings"
+	"sync"
 	"time"
 
-	"github.com/booster-proj/booster/sources"
+	"github.com/booster-proj/booster/listener/provider"
 	"github.com/booster-proj/core"
 	"upspin.io/log"
 )
@@ -41,17 +39,51 @@ type state struct {
 	updatedAt time.Time
 }
 
-type Provider func(context.Context) ([]core.Source, error)
+type Provider interface {
+	Provide(context.Context, provider.Confidence) ([]core.Source, error)
+}
+
+type hookErr struct {
+	ref     string
+	network string
+	address string
+	err     error
+}
 
 type Listener struct {
-	Find Provider
+	Provider
 
 	s     Storage
 	state *state
+
+	hooked struct {
+		sync.Mutex
+		errors []hookErr
+	}
 }
 
 func New(s Storage) *Listener {
-	return &Listener{s: s, Find: findInterfaces}
+	l := &Listener{s: s}
+	l.Provider = &provider.Merged{
+		ErrHook: func(ref, network, address string, err error) {
+			log.Debug.Printf("Listener: ErrHook called from %s (net: %s, addr: %s): %v", ref, network, address, err)
+
+			l.hooked.Lock()
+			defer l.hooked.Unlock()
+
+			if l.hooked.errors == nil {
+				l.hooked.errors = []hookErr{}
+			}
+			l.hooked.errors = append(l.hooked.errors, hookErr{
+				ref:     ref,
+				network: network,
+				address: address,
+				err:     err,
+			})
+		},
+	}
+
+	return l
 }
 
 var poolInterval = time.Second * 3
@@ -80,15 +112,15 @@ func filterErr(err error) error {
 }
 
 func (l *Listener) Run(ctx context.Context) error {
-	pool := func() error {
+	poll := func() error {
 		_ctx, cancel := context.WithTimeout(ctx, poolTimeout)
 		defer cancel()
 
-		if err := filterErr(l.Pool(_ctx)); err != nil {
+		if err := filterErr(l.Poll(_ctx)); err != nil {
 			return err
 		}
 
-		log.Debug.Printf("Listener: state after pool: %+v", l.state)
+		log.Debug.Printf("Listener: state after poll: %+v", l.state)
 
 		if len(l.state.del) > 0 {
 			log.Info.Printf("Listener: deleting %v", l.state.del)
@@ -102,8 +134,8 @@ func (l *Listener) Run(ctx context.Context) error {
 		return nil
 	}
 
-	// Pool first
-	if err := pool(); err != nil {
+	// Poll first
+	if err := poll(); err != nil {
 		return err
 	}
 
@@ -113,28 +145,38 @@ func (l *Listener) Run(ctx context.Context) error {
 			// Exit in case of context cancelation
 			return ctx.Err()
 		case <-time.After(poolInterval):
-			if err := pool(); err != nil {
+			if err := poll(); err != nil {
 				return err
 			}
 		}
 	}
 }
 
-func (l *Listener) Pool(ctx context.Context) error {
+func (l *Listener) Poll(ctx context.Context) error {
 	log.Debug.Printf("Listener: pooling sources...")
 
-	if l.Find == nil {
-		return &Err{fmt.Errorf("Listener requires a Find function to retrieve some sources")}
-	}
 	if l.state == nil {
 		l.state = &state{prev: make(map[string]core.Source)}
 	}
 
-	cur, err := l.Find(ctx)
+	// Find required level of confidence.
+	level := provider.Low // default
+	l.hooked.Lock()
+	if len(l.hooked.errors) > 0 {
+		// It means that at least one source is not working as
+		// expected. Increase the level of confidence required
+		// to find which sources are actually available.
+		level = provider.High
+
+		l.hooked.errors = nil // reset
+	}
+	l.hooked.Unlock()
+
+	cur, err := l.Provide(ctx, level)
 	if err != nil {
 		return err
 	}
-	log.Debug.Printf("Pool: found %d sources", len(cur))
+	log.Debug.Printf("Poll: found %d sources", len(cur))
 
 	curm := make(map[string]core.Source)
 
@@ -147,14 +189,14 @@ func (l *Listener) Pool(ctx context.Context) error {
 
 		if _, ok := l.state.prev[v.ID()]; !ok {
 			// `v` is in cur but not in prev. Needs to be added.
-			log.Debug.Printf("Pool: add source: %s", v.ID())
+			log.Debug.Printf("Poll: add source: %s", v.ID())
 			add = append(add, v)
 		}
 	}
 	for k, v := range l.state.prev {
 		if _, ok := curm[k]; !ok {
 			// `v` is in prev but not in cur. Has to be deleted.
-			log.Debug.Printf("Pool: del source: %s", v.ID())
+			log.Debug.Printf("Poll: del source: %s", v.ID())
 			del = append(del, v)
 		}
 	}
@@ -165,56 +207,7 @@ func (l *Listener) Pool(ctx context.Context) error {
 	l.state.add = make([]core.Source, len(add))
 	copy(l.state.add, add)
 
-	log.Debug.Printf("Pool: new state: %+v", l.state)
+	log.Debug.Printf("Poll: new state: %+v", l.state)
 
 	return nil
-}
-
-func findInterfaces(ctx context.Context) ([]core.Source, error) {
-	ifs := getFilteredInterfaces("en")
-	ss := make([]core.Source, len(ifs))
-	for i, v := range ifs {
-		ss[i] = v
-	}
-
-	return ss, nil
-}
-
-func getFilteredInterfaces(s string) []*sources.Interface {
-	ifs, err := net.Interfaces()
-	if err != nil {
-		log.Error.Printf("Unable to get interfaces: %v\n", err)
-		return []*sources.Interface{}
-	}
-
-	l := make([]*sources.Interface, 0, len(ifs))
-
-	for _, v := range ifs {
-		log.Debug.Printf("Inspecting interface %+v\n", v)
-
-		if len(v.HardwareAddr) == 0 {
-			log.Debug.Printf("Empty hardware address. Skipping interface...")
-			continue
-		}
-
-		if s != "" && !strings.Contains(v.Name, s) {
-			log.Debug.Printf("Interface name does not satisfy name requirements: must contain \"%s\"", s)
-			continue
-		}
-
-		addrs, err := v.Addrs()
-		if err != nil {
-			// If the source does not contain an error
-			log.Debug.Printf("Unable to get interface addresses: %v. Skipping interface...", err)
-			continue
-		}
-		if len(addrs) == 0 {
-			log.Debug.Printf("Empty unicast/multicast address list. Skipping interface...")
-			continue
-		}
-
-		l = append(l, &sources.Interface{Interface: v})
-	}
-
-	return l
 }
