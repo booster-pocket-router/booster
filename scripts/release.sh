@@ -88,7 +88,7 @@ function uploadSnaps {
 	done
  	set -e
  	echo "Remember to execute \`snapcraft release <snap name> revision channel\` for each revision provided!"
-	echo "Find revisions using \`snapcraft list-revisions booster\`"
+	echo "Find revisions using \`snapcraft list-revisions <snap name>\`"
 }
 
 # main
