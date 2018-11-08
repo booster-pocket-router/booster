@@ -17,7 +17,7 @@ As [snap](https://snapcraft.io/store) on **any** linux distribution
 sudo snap install booster --beta
 ```   
 #### From source
-Install [install go](https://golang.org/doc/install), then type this commands into your command line:   
+First [install go](https://golang.org/doc/install), then type this commands into your command line:   
 ``` bash
 git clone https://github.com/booster-proj/booster.git && cd booster # Clone
 make test # Test
