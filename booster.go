@@ -20,24 +20,27 @@ package booster
 import (
 	"context"
 	"net"
-	"strings"
 
-	"github.com/booster-proj/booster/sources"
 	"github.com/booster-proj/core"
 	"upspin.io/log"
 )
 
-type Booster struct {
+// New returns an instance of a booster dialer.
+func New(b *core.Balancer) core.Dialer {
+	return &dialer{b}
+}
+
+type dialer struct {
 	*core.Balancer
 }
 
-func (b *Booster) DialContext(ctx context.Context, network, address string) (conn net.Conn, err error) {
-	bl := make([]core.Source, 0, b.Len()) // blacklisted sources
+func (d *dialer) DialContext(ctx context.Context, network, address string) (conn net.Conn, err error) {
+	bl := make([]core.Source, 0, d.Len()) // blacklisted sources
 
 	// If the dialing fails, keep on trying with the other sources until exaustion.
-	for i := 0; len(bl) < b.Len(); i++ {
+	for i := 0; len(bl) < d.Len(); i++ {
 		var src core.Source
-		src, err = b.Get(ctx, bl...)
+		src, err = d.Get(ctx, bl...)
 		if err != nil {
 			// Fail directly if the balancer returns an error, as
 			// we do not have any source to use.
@@ -59,43 +62,4 @@ func (b *Booster) DialContext(ctx context.Context, network, address string) (con
 	}
 
 	return
-}
-
-func GetFilteredInterfaces(s string) []*sources.Interface {
-	ifs, err := net.Interfaces()
-	if err != nil {
-		log.Error.Printf("Unable to get interfaces: %v\n", err)
-		return []*sources.Interface{}
-	}
-
-	l := make([]*sources.Interface, 0, len(ifs))
-
-	for _, v := range ifs {
-		log.Debug.Printf("Inspecting interface %+v\n", v)
-
-		if len(v.HardwareAddr) == 0 {
-			log.Debug.Printf("Empty hardware address. Skipping interface...")
-			continue
-		}
-
-		if s != "" && !strings.Contains(v.Name, s) {
-			log.Debug.Printf("Interface name does not satisfy name requirements: must contain \"%s\"", s)
-			continue
-		}
-
-		addrs, err := v.Addrs()
-		if err != nil {
-			// If the source does not contain an error
-			log.Debug.Printf("Unable to get interface addresses: %v. Skipping interface...", err)
-			continue
-		}
-		if len(addrs) == 0 {
-			log.Debug.Printf("Empty unicast/multicast address list. Skipping interface...")
-			continue
-		}
-
-		l = append(l, &sources.Interface{Interface: v})
-	}
-
-	return l
 }

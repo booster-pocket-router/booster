@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package sources
+package source
 
 import (
 	"context"
@@ -68,7 +68,7 @@ func (i Interface) dialContext(ctx context.Context, network, address string) (ne
 		Control: func(network, address string, c syscall.RawConn) error {
 			return c.Control(func(fd uintptr) {
 				if err := unix.Bind(int(fd), addr); err != nil {
-					log.Error.Printf("Unable to bind to interface %v: %v", i.Name, err)
+					log.Debug.Printf("dialContext_unix error: unable to bind to interface %v: %v", i.Name, err)
 				}
 			})
 		},
