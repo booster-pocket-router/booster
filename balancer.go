@@ -36,13 +36,13 @@ type Dialer interface {
 // keep a set of metrics regarding the operations that is performing, or has
 // performed.
 type Source interface {
+	Dialer
+
 	// ID uniquely identifies a source.
 	ID() string
 
 	// Metrics provide information about the past usage of the source.
 	Metrics() map[string]interface{}
-
-	Dialer
 }
 
 // Strategy chooses a source from a ring of sources.
