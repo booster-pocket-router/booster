@@ -26,7 +26,7 @@ snapshot:
   name_template: "SNAPSHOT-{{ .ShortCommit }}"
 
 snapcraft:
-  publish: false
+  publish: true
 
   # Single-line elevator pitch for your amazing snap.
   # 79 char long at most.
@@ -41,7 +41,8 @@ snapcraft:
     Source code is located at https://github.com/booster-proj/booster.
 
   grade: devel
-  confinement: devmode
+  confinement: strict
 
-  # Note: Each binary built by GoReleaser is an app inside the snap. Add the "apps"
-  # section to change this behaviour.
+  apps:
+    booster:
+      plugs: [network, network-bind]
