@@ -77,14 +77,30 @@ function tag {
 	git push origin "$1"
 }
 
+function uploadSnaps {
+	# allow multiple upload failures
+	set +e
+	echo "Uploading snaps..."
+	local files=( `find dist -name "*.snap" -type f` )
+ 	echo "Snaps found: ${files[@]}."
+	for f in ${files[@]}; do
+		snapcraft push $f
+	done
+ 	set -e
+ 	echo "Remember to execute \`snapcraft release <snap name> revision channel\` for each revision provided!"
+	echo "Find revisions using \`snapcraft list-revisions booster\`"
+}
+
 # main
 
-OPTS="Snapshot Release Exit"
+OPTS="Snapshot Release UploadSnaps Exit"
 select opt in $OPTS; do
 	if [ "$opt" = "Snapshot" ]; then
 		snapshot
 	elif [ "$opt" = "Release" ]; then
 		release
+	elif [ "$opt" = "UploadSnaps" ]; then
+		uploadSnaps
 	else
 		exit
 	fi
