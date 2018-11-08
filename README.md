@@ -8,19 +8,21 @@
 While more and more people today have a fast Internet connection, there are plenty of other people that do not. The aim of this project is to create a solution that combines multiple Internet access points (such as Wifi or mobile devices) into one single faster Internet connection, that it is easy to use, and fast to configure.
 
 ## Installation
+*(Windows is not yet supported)*
 #### Binary
 Pick your [release](https://github.com/booster-proj/booster/releases).
+#### Snap
+As [snap](https://snapcraft.io/store) on **any** linux distribution   
+``` bash
+sudo snap install booster --beta
+```   
 #### From source
-First [install go](https://golang.org/doc/install).
-(Windows is not yet supported)
-
-Afterwards, type this commands into your command line:
+Install [install go](https://golang.org/doc/install), then type this commands into your command line:   
 ``` bash
 git clone https://github.com/booster-proj/booster.git && cd booster # Clone
 make test # Test
 make # Build
 ```
-
 ## Usage
 When `booster` spawns, it identifies the network interfaces available in the system that provide an active internet connection. It then starts a proxy server that speaks either **socks5** or **http**. According to some particular **strategy**, the server is able to **distribute** the incoming network traffic across the network interfaces collected.
 
