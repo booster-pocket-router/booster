@@ -43,3 +43,8 @@ Last:
  - select: `SOCKS Proxy`, type: `localhost : 1080` (or wherever `booster`'s proxy is listening on)
  - https://www.speedtest.net 🤓
 
+## Highscores
+This section is reserved for the highest download speed that we managed to obtain in our office. Without `booster` our WIFI's download speed reaches [~34Mbps](https://www.speedtest.net/result/7783615417), but **with booster**... :tada:  
+<p align="center">
+   <a href="https://www.speedtest.net/result/7777990270"><img src="https://www.speedtest.net/result/7777990270.png"/></a>
+</p>
