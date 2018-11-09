@@ -40,7 +40,7 @@ var (
 )
 
 var port = flag.Int("port", 1080, "Server listening port")
-var rawProto = flag.String("proto", "", "Proxy protocol used. Available protocols: http, https, socks5.")
+var rawProto = flag.String("proto", "socks5", "Proxy protocol used. Available protocols: http, socks5.")
 var verbose = flag.Bool("verbose", false, "Enable verbose mode")
 
 func main() {
