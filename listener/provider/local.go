@@ -26,7 +26,16 @@ import (
 	"upspin.io/log"
 )
 
+type inspection struct {
+	at time.Time
+	active bool
+}
+
+var ttl time.Duration = time.Second * 15
+
 type Local struct {
+	// known is the list of interfaces that passed a the high confidence tests.
+	known map[string]inspection
 }
 
 func (l *Local) provide(ctx context.Context, level Confidence) ([]*source.Interface, error) {
@@ -37,34 +46,95 @@ func (l *Local) provide(ctx context.Context, level Confidence) ([]*source.Interf
 
 	interfaces := make([]*source.Interface, 0, len(ift))
 	for _, ifi := range ift {
-		s := &source.Interface{Interface: ifi}
-		if level <= Low {
-			if err := pipeline(s, hasHardwareAddr, hasIP); err != nil {
-				log.Debug.Printf("Local provider: low confidence pipeline: %v", err)
-				continue
-			}
+		if s := l.filter(&source.Interface{Interface: ifi}, level); s != nil {
+			interfaces = append(interfaces, s)
 		}
-		if level <= High {
-			if err := pipeline(s, hasNetworkConn); err != nil {
-				log.Debug.Printf("Local provider: high confidence pipeline %v", err)
-				continue
-			}
-		}
-
-		interfaces = append(interfaces, s)
 	}
+
+	// Update known interfaces
 	return interfaces, nil
 }
 
-type filter func(*source.Interface) error
+func (l *Local) filter(ifi *source.Interface, level Confidence) *source.Interface {
+	if level == High {
+		// If it is required to make a high confidence test, just do it.
+		return l.makeChecks(ifi, level)
+	}
 
-func pipeline(ifi *source.Interface, ff ...filter) error {
-	for _, f := range ff {
-		if err := f(ifi); err != nil {
-			return err
+	ifi = l.makeChecks(ifi, level) // perform the low level tests first
+	if ifi == nil {
+		return nil
+	}
+
+	// In case of a low confidence test, check if this interfaces is already in the
+	// known list. In that case use it as a measure.
+	// This way we avoid to keep on adding an interface that appers active to the
+	// low confidence checks, but is actually not active to the eyes of the high
+	// confidence ones.
+
+	// Side effect: this way we're not able to detect that an interface became
+	// active again after having failed just the high level tests once.
+	if inspection, ok := l.known[ifi.Name]; ok {
+		if inspection.active == false {
+			// This means that the low confidence test returned ok, but
+			// the high one tells us that the interface does not actually
+			// provide internet connections.
+			return nil
+		}
+
+		if time.Now().Sub(inspection.at) <= ttl {
+			return ifi // we consider the last high confidence test stil valid
+		} else {
+			// Perform an high confidence test again, because the one that we've
+			// performed is outdated
+			return l.makeChecks(ifi, High)
 		}
 	}
-	return nil
+
+	// If we reach this point, it means that we've encountered an interface up to
+	// now not known. Perform the high confidence tests on it in any case.
+	return l.makeChecks(ifi, High)
+}
+
+func (l *Local) makeChecks(ifi *source.Interface, level Confidence) *source.Interface {
+	checks := []check{hasHardwareAddr, hasIP}
+	if level == High {
+		checks = append(checks, hasNetworkConn)
+	}
+
+	if l.known == nil {
+		l.known = make(map[string]inspection)
+	}
+
+	_ifi, err := pipeline(ifi, checks...)
+	if err != nil {
+		log.Debug.Printf("Local provider: pipeline with confidence (%d): %v", level, err)
+	}
+
+	l.updateKnown(ifi, level, err != nil)
+	return _ifi
+}
+
+func (l *Local) updateKnown(ifi *source.Interface, level Confidence, failed bool) {
+	if level != High {
+		return
+	}
+
+	l.known[ifi.Name] = inspection{
+		active: !failed,
+		at: time.Now(),
+	}
+}
+
+type check func(*source.Interface) error
+
+func pipeline(ifi *source.Interface, checks ...check) (*source.Interface, error) {
+	for _, f := range checks {
+		if err := f(ifi); err != nil {
+			return nil, err
+		}
+	}
+	return ifi, nil
 }
 
 func hasHardwareAddr(ifi *source.Interface) error {
@@ -112,7 +182,7 @@ func hasNetworkConn(ifi *source.Interface) error {
 
 	conn, err := ifi.DialContext(ctx, "tcp", "google.com:80")
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to dial connection using interface %s: %v", ifi.Name, err)
 	}
 	conn.Close()
 	return nil

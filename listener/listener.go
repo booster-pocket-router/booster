@@ -58,6 +58,7 @@ type Listener struct {
 
 	hooked struct {
 		sync.Mutex
+		ignore bool
 		errors []hookErr
 	}
 }
@@ -66,10 +67,13 @@ func New(s Storage) *Listener {
 	l := &Listener{s: s}
 	l.Provider = &provider.Merged{
 		ErrHook: func(ref, network, address string, err error) {
-			log.Debug.Printf("Listener: ErrHook called from %s (net: %s, addr: %s): %v", ref, network, address, err)
-
 			l.hooked.Lock()
 			defer l.hooked.Unlock()
+			if l.hooked.ignore {
+				return
+			}
+
+			log.Debug.Printf("Listener: ErrHook called from %s (net: %s, addr: %s): %v", ref, network, address, err)
 
 			if l.hooked.errors == nil {
 				l.hooked.errors = []hookErr{}
@@ -111,14 +115,22 @@ func filterErr(err error) error {
 	return nil
 }
 
+func (l *Listener) ignoreHooks(ok bool) {
+	l.hooked.Lock()
+	defer l.hooked.Unlock()
+	l.hooked.ignore = ok
+}
+
 func (l *Listener) Run(ctx context.Context) error {
 	poll := func() error {
 		_ctx, cancel := context.WithTimeout(ctx, poolTimeout)
 		defer cancel()
 
+		l.ignoreHooks(true)
 		if err := filterErr(l.Poll(_ctx)); err != nil {
 			return err
 		}
+		l.ignoreHooks(false)
 
 		log.Debug.Printf("Listener: state after poll: %+v", l.state)
 
@@ -168,10 +180,11 @@ func (l *Listener) Poll(ctx context.Context) error {
 		// to find which sources are actually available.
 		level = provider.High
 
-		l.hooked.errors = nil // reset
+		l.hooked.errors = []hookErr{} // reset
 	}
 	l.hooked.Unlock()
 
+	log.Debug.Printf("Querying provider using confidence level: %d", level)
 	cur, err := l.Provide(ctx, level)
 	if err != nil {
 		return err

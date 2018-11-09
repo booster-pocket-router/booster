@@ -15,10 +15,15 @@ const (
 
 type Merged struct {
 	ErrHook func(ref, network, address string, err error)
+	local *Local
 }
 
 func (m *Merged) Provide(ctx context.Context, level Confidence) ([]core.Source, error) {
-	interfaces, err := new(Local).provide(ctx, level)
+	if m.local == nil {
+		m.local = new(Local)
+	}
+
+	interfaces, err := m.local.provide(ctx, level)
 	if err != nil {
 		return []core.Source{}, err
 	}
