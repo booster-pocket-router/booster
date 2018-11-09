@@ -15,7 +15,7 @@ const (
 
 type Merged struct {
 	ErrHook func(ref, network, address string, err error)
-	local *Local
+	local   *Local
 }
 
 func (m *Merged) Provide(ctx context.Context, level Confidence) ([]core.Source, error) {

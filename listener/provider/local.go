@@ -27,7 +27,7 @@ import (
 )
 
 type inspection struct {
-	at time.Time
+	at     time.Time
 	active bool
 }
 
@@ -122,7 +122,7 @@ func (l *Local) updateKnown(ifi *source.Interface, level Confidence, failed bool
 
 	l.known[ifi.Name] = inspection{
 		active: !failed,
-		at: time.Now(),
+		at:     time.Now(),
 	}
 }
 
