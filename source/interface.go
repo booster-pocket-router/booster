@@ -76,7 +76,7 @@ func (i *Interface) DialContext(ctx context.Context, network, address string) (n
 	}
 
 	n := conn.Add(1)
-	log.Debug.Printf("Opening connection (ref: %v) to(%v), left(%d)", conn.Ref, c.RemoteAddr(), n)
+	log.Debug.Printf("Interface (ref: %v): Opening connection to(%v), left(%d)", conn.Ref, c.RemoteAddr(), n)
 
 	return conn, nil
 }
@@ -106,7 +106,7 @@ func (c *Conn) Close() error {
 	}
 
 	n := c.Add(-1)
-	log.Debug.Printf("Closing connection (ref: %v) to(%v), left(%d)", c.Ref, c.RemoteAddr(), n)
+	log.Debug.Printf("Interface (ref: %v): Closing connection to(%v), left(%d)", c.Ref, c.RemoteAddr(), n)
 	c.closed = true
 
 	return c.Conn.Close()
