@@ -16,6 +16,7 @@ As [snap](https://snapcraft.io/store) on **any** linux distribution
 ``` bash
 sudo snap install booster --beta
 ```   
+Note that `booster` requires **root** privileges to work (linux only).   
 #### From source
 First [install go](https://golang.org/doc/install), then type this commands into your command line:   
 ``` bash
@@ -36,7 +37,7 @@ Setup:
 I plug my iPhone 5s (with tethering enabled, iOS 12) into my MacBook Pro (macOS 10.14),
 Run:
 ``` bash
-bin/booster -proto=socks5
+bin/booster
 ```
 Last:
  - System Preferences > Network > Advanced... > Proxies
