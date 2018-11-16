@@ -1,4 +1,4 @@
-// +build darwin linux
+// +build darwin
 
 /*
 Copyright (C) 2018 KIM KeepInMind GmbH/srl
