@@ -26,19 +26,10 @@ import (
 	"upspin.io/log"
 )
 
-type inspection struct {
-	at     time.Time
-	active bool
-}
-
-var ttl time.Duration = time.Second * 15
-
 type Local struct {
-	// known is the list of interfaces that passed a the high confidence tests.
-	known map[string]inspection
 }
 
-func (l *Local) provide(ctx context.Context, level Confidence) ([]*source.Interface, error) {
+func (l *Local) Provide(ctx context.Context, level Confidence) ([]*source.Interface, error) {
 	ift, err := net.Interfaces()
 	if err != nil {
 		return []*source.Interface{}, err
@@ -55,96 +46,42 @@ func (l *Local) provide(ctx context.Context, level Confidence) ([]*source.Interf
 	return interfaces, nil
 }
 
-func (l *Local) filter(ifi *source.Interface, level Confidence) *source.Interface {
-	if level == High {
-		// If it is required to make a high confidence test, just do it.
-		return l.makeChecks(ifi, level)
-	}
-
-	ifi = l.makeChecks(ifi, level) // perform the low level tests first
-	if ifi == nil {
-		return nil
-	}
-
-	// In case of a low confidence test, check if this interfaces is already in the
-	// known list. In that case use it as a measure.
-	// This way we avoid to keep on adding an interface that appers active to the
-	// low confidence checks, but is actually not active to the eyes of the high
-	// confidence ones.
-
-	// Side effect: this way we're not able to detect that an interface became
-	// active again after having failed just the high level tests once.
-	if inspection, ok := l.known[ifi.Name]; ok {
-		if inspection.active == false {
-			// This means that the low confidence test returned ok, but
-			// the high one tells us that the interface does not actually
-			// provide internet connections.
-			return nil
-		}
-
-		if time.Now().Sub(inspection.at) <= ttl {
-			return ifi // we consider the last high confidence test stil valid
-		} else {
-			// Perform an high confidence test again, because the one that we've
-			// performed is outdated
-			return l.makeChecks(ifi, High)
-		}
-	}
-
-	// If we reach this point, it means that we've encountered an interface up to
-	// now not known. Perform the high confidence tests on it in any case.
-	return l.makeChecks(ifi, High)
-}
-
-func (l *Local) makeChecks(ifi *source.Interface, level Confidence) *source.Interface {
+func (l *Local) Check(ctx context.Context, ifi *source.Interface, level Confidence) error {
 	checks := []check{hasHardwareAddr, hasIP}
 	if level == High {
-		checks = append(checks, hasNetworkConn)
+		checks = append(checks, hasNetworkConnRetry)
 	}
 
-	if l.known == nil {
-		l.known = make(map[string]inspection)
-	}
+	return pipeline(ctx, ifi, checks...)
+}
 
-	_ifi, err := pipeline(ifi, checks...)
-	if err != nil {
+func (l *Local) filter(ifi *source.Interface, level Confidence) *source.Interface {
+	if err := l.Check(context.Background(), ifi, level); err != nil {
 		log.Debug.Printf("Local provider: pipeline with confidence (%d): %v", level, err)
+		return nil
 	}
-
-	l.updateKnown(ifi, level, err != nil)
-	return _ifi
+	return ifi
 }
 
-func (l *Local) updateKnown(ifi *source.Interface, level Confidence, failed bool) {
-	if level != High {
-		return
-	}
+type check func(context.Context, *source.Interface) error
 
-	l.known[ifi.Name] = inspection{
-		active: !failed,
-		at:     time.Now(),
-	}
-}
-
-type check func(*source.Interface) error
-
-func pipeline(ifi *source.Interface, checks ...check) (*source.Interface, error) {
+func pipeline(ctx context.Context, ifi *source.Interface, checks ...check) error {
 	for _, f := range checks {
-		if err := f(ifi); err != nil {
-			return nil, err
+		if err := f(ctx, ifi); err != nil {
+			return err
 		}
 	}
-	return ifi, nil
+	return nil
 }
 
-func hasHardwareAddr(ifi *source.Interface) error {
+func hasHardwareAddr(ctx context.Context, ifi *source.Interface) error {
 	if len(ifi.HardwareAddr) == 0 {
 		return fmt.Errorf("interface %s does not have a valid hardware address", ifi.Name)
 	}
 	return nil
 }
 
-func hasIP(ifi *source.Interface) error {
+func hasIP(ctx context.Context, ifi *source.Interface) error {
 	addrs, err := ifi.Addrs()
 	if err != nil {
 		return fmt.Errorf("unable to get addresses of interface %s: %v", ifi.Name, err)
@@ -176,8 +113,8 @@ func hasIP(ifi *source.Interface) error {
 	return nil
 }
 
-func hasNetworkConn(ifi *source.Interface) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500)
+func hasNetworkConn(ctx context.Context, ifi *source.Interface) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Millisecond*500)
 	defer cancel()
 
 	conn, err := ifi.DialContext(ctx, "tcp", "google.com:80")
@@ -186,4 +123,24 @@ func hasNetworkConn(ifi *source.Interface) error {
 	}
 	conn.Close()
 	return nil
+}
+
+func hasNetworkConnRetry(ctx context.Context, ifi *source.Interface) error {
+	for i := 0; i < 3; i++ {
+		if i == 2 {
+			// last item
+			return hasNetworkConn(ctx, ifi)
+		}
+
+		if err := hasNetworkConn(ctx, ifi); err == nil {
+			return nil
+		}
+
+		select {
+		case <-time.After(500 * time.Millisecond):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return nil // will not be reached
 }

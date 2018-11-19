@@ -14,33 +14,34 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+// Package listener provides a functionalities to discover and inspect
+// sources.
 package listener
 
 import (
 	"context"
 	"sync"
 	"time"
+	"fmt"
 
 	"github.com/booster-proj/booster/listener/provider"
 	"github.com/booster-proj/core"
 	"upspin.io/log"
 )
 
+// Storage describes an entity that is able to store
+// and delete sources.
 type Storage interface {
 	Put(...core.Source)
 	Del(...core.Source)
 }
 
-type state struct {
-	prev map[string]core.Source
-	add  []core.Source
-	del  []core.Source
-
-	updatedAt time.Time
-}
-
+// Provider describes a service that is capable of providing sources
+// and checking their effective internet connection using a defined
+// level of confidence.
 type Provider interface {
-	Provide(context.Context, provider.Confidence) ([]core.Source, error)
+	Provide(context.Context) ([]core.Source, error)
+	Check(context.Context, core.Source, provider.Confidence) error
 }
 
 type hookErr struct {
@@ -50,19 +51,29 @@ type hookErr struct {
 	err     error
 }
 
+type inspection struct {
+	source core.Source
+	active bool
+	confidence provider.Confidence
+	createdAt time.Time
+}
+
 type Listener struct {
 	Provider
-
 	s     Storage
-	state *state
 
 	hooked struct {
 		sync.Mutex
 		ignore bool
 		errors []hookErr
 	}
+	state struct {
+		inspected map[string]inspection
+	}
 }
 
+// New creates a new Listener with the provided storage, using
+// as Provider the provider.Merged implementation.
 func New(s Storage) *Listener {
 	l := &Listener{s: s}
 	l.Provider = &provider.Merged{
@@ -90,8 +101,8 @@ func New(s Storage) *Listener {
 	return l
 }
 
-var poolInterval = time.Second * 3
-var poolTimeout = time.Second * 2
+var PollInterval = time.Second * 3
+var PollTimeout = time.Second * 2
 
 // Err is a Listener's critical error.
 type Err struct {
@@ -121,9 +132,13 @@ func (l *Listener) ignoreHooks(ok bool) {
 	l.hooked.ignore = ok
 }
 
+// Run is a blocking function which keeps on calling Poll and waiting
+// PollInterval amount of time. This function will stop with an error
+// only in case of a context cancelation and in case that the Poll
+// function returns with a critical error.
 func (l *Listener) Run(ctx context.Context) error {
-	poll := func() error {
-		_ctx, cancel := context.WithTimeout(ctx, poolTimeout)
+	for {
+		_ctx, cancel := context.WithTimeout(ctx, PollTimeout)
 		defer cancel()
 
 		l.ignoreHooks(true)
@@ -132,95 +147,116 @@ func (l *Listener) Run(ctx context.Context) error {
 		}
 		l.ignoreHooks(false)
 
-		log.Debug.Printf("Listener: state after poll: %+v", l.state)
-
-		if len(l.state.del) > 0 {
-			log.Info.Printf("Listener: deleting %v", l.state.del)
-			l.s.Del(l.state.del...)
-		}
-		if len(l.state.add) > 0 {
-			log.Info.Printf("Listener: adding %v", l.state.add)
-			l.s.Put(l.state.add...)
-		}
-
-		return nil
-	}
-
-	// Poll first
-	if err := poll(); err != nil {
-		return err
-	}
-
-	for {
 		select {
 		case <-ctx.Done():
-			// Exit in case of context cancelation
+			// Exit in case of context cancelation.
 			return ctx.Err()
-		case <-time.After(poolInterval):
-			if err := poll(); err != nil {
-				return err
-			}
+		case <-time.After(PollInterval):
+			// Wait before polling again.
 		}
+	}
+	return nil
+}
+
+func (l *Listener) makeInspection(src core.Source) inspection {
+	err := l.Check(context.Background(), src, provider.High)
+	return inspection{
+		source: src,
+		active: err == nil,
+		confidence: provider.High,
+		createdAt: time.Now(),
 	}
 }
 
+// Pool queries the provider for a list of sources. It then inspect each
+// new source, saving into the storage the sources that provide an active 
+// internet connection and removing the ones that are no longer available.
 func (l *Listener) Poll(ctx context.Context) error {
-	log.Debug.Printf("Listener: pooling sources...")
-
-	if l.state == nil {
-		l.state = &state{prev: make(map[string]core.Source)}
+	if l.Provider == nil {
+		return &Err{e: fmt.Errorf("Listener is unable to poll: no provider found")}
 	}
 
-	// Find required level of confidence.
-	level := provider.Low // default
-	l.hooked.Lock()
-	if len(l.hooked.errors) > 0 {
-		// It means that at least one source is not working as
-		// expected. Increase the level of confidence required
-		// to find which sources are actually available.
-		level = provider.High
-
-		l.hooked.errors = []hookErr{} // reset
-	}
-	l.hooked.Unlock()
-
-	log.Debug.Printf("Querying provider using confidence level: %d", level)
-	cur, err := l.Provide(ctx, level)
+	cur, err := l.Provide(ctx)
 	if err != nil {
-		return err
+		return &Err{e: err}
 	}
-	log.Debug.Printf("Poll: found %d sources", len(cur))
 
-	curm := make(map[string]core.Source)
 
-	// cleanup previous state
-	del := []core.Source{}
+	if l.state.inspected == nil {
+		l.state.inspected = make(map[string]inspection)
+	}
+
 	add := []core.Source{}
+	del := []core.Source{}
+	curm := make(map[string]core.Source, len(cur))
 
 	for _, v := range cur {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		curm[v.ID()] = v
 
-		if _, ok := l.state.prev[v.ID()]; !ok {
-			// `v` is in cur but not in prev. Needs to be added.
-			log.Debug.Printf("Poll: add source: %s", v.ID())
-			add = append(add, v)
+		inspection, ok := l.state.inspected[v.ID()]
+		if !ok {
+			// The source found is new to the listener's eyes.
+			i := l.makeInspection(v)
+			l.state.inspected[v.ID()] = i
+			if i.active {
+				add = append(add, v)
+			}
+			continue
 		}
+
+		// We already know this source.
+
+		if !inspection.active {
+			// The last inspection says that this source does not
+			// actually provide an internet connection. Skip checking
+			// for hook errors.
+			continue
+		}
+
+		l.hooked.Lock()
+		for _, herr := range l.hooked.errors {
+			// Check if the source appears in the list of hooked
+			// errors, i.e. it requires further investigation.
+			if herr.ref == v.ID() {
+				i := l.makeInspection(v)
+				l.state.inspected[v.ID()] = i
+				if !i.active {
+					del = append(del, v)
+				}
+			}
+		}
+		l.hooked.Unlock()
 	}
-	for k, v := range l.state.prev {
+
+	for k, v := range l.state.inspected {
 		if _, ok := curm[k]; !ok {
-			// `v` is in prev but not in cur. Has to be deleted.
-			log.Debug.Printf("Poll: del source: %s", v.ID())
-			del = append(del, v)
+			// The source found was in the inspected list of items
+			// but it is no longer present in the list of current
+			// items. Has to be deleted.
+			del = append(del, v.source)
 		}
 	}
 
-	l.state.prev = curm
-	l.state.del = make([]core.Source, len(del))
-	copy(l.state.del, del)
-	l.state.add = make([]core.Source, len(add))
-	copy(l.state.add, add)
+	if len(add) > 0 {
+		log.Info.Printf("Local provider: Adding sources: %v", add)
+		l.s.Put(add...)
+	}
+	if len(del) > 0 {
+		log.Info.Printf("Local provider: Adding sources: %v", add)
+		l.s.Del(del...)
+	}
 
-	log.Debug.Printf("Poll: new state: %+v", l.state)
+	for _, v := range del {
+		// Cleanup inspections.
+		delete(l.state.inspected, v.ID())
+	}
 
 	return nil
 }
+
