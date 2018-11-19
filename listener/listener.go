@@ -19,8 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package listener
 
 import (
-	"context"
-	"sync"
+	"context" "sync"
 	"time"
 	"fmt"
 
@@ -102,7 +101,7 @@ func New(s Storage) *Listener {
 }
 
 var PollInterval = time.Second * 3
-var PollTimeout = time.Second * 2
+var PollTimeout = time.Second * 5
 
 // Err is a Listener's critical error.
 type Err struct {
@@ -248,7 +247,7 @@ func (l *Listener) Poll(ctx context.Context) error {
 		l.s.Put(add...)
 	}
 	if len(del) > 0 {
-		log.Info.Printf("Local provider: Adding sources: %v", add)
+		log.Info.Printf("Local provider: Deleting sources: %v", del)
 		l.s.Del(del...)
 	}
 
