@@ -46,3 +46,4 @@ snapcraft:
   apps:
     booster:
       plugs: [network, network-bind]
+      daemon: simple

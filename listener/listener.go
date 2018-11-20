@@ -132,6 +132,19 @@ func (l *Listener) ignoreHooks(ok bool) {
 	l.hooked.ignore = ok
 }
 
+func (l *Listener) Put(src core.Source) {
+	log.Info.Printf("Listener: putting source: %v", src)
+	l.s.Put(src)
+}
+
+func (l *Listener) Del(src core.Source) {
+	if _, ok := l.state.inspected[src.ID()]; ok {
+		log.Info.Printf("Listener: deleting source: %v", src)
+		l.s.Del(src)
+		delete(l.state.inspected, src.ID())
+	}
+}
+
 // Run is a blocking function which keeps on calling Poll and waiting
 // PollInterval amount of time. This function will stop with an error
 // only in case of a context cancelation and in case that the Poll
@@ -186,10 +199,7 @@ func (l *Listener) Poll(ctx context.Context) error {
 		l.state.inspected = make(map[string]inspection)
 	}
 
-	add := []core.Source{}
-	del := []core.Source{}
 	curm := make(map[string]core.Source, len(cur))
-
 	for _, v := range cur {
 		select {
 		case <-ctx.Done():
@@ -205,7 +215,7 @@ func (l *Listener) Poll(ctx context.Context) error {
 			i := l.makeInspection(v)
 			l.state.inspected[v.ID()] = i
 			if i.active {
-				add = append(add, v)
+				l.Put(v)
 			}
 			continue
 		}
@@ -227,7 +237,7 @@ func (l *Listener) Poll(ctx context.Context) error {
 				i := l.makeInspection(v)
 				l.state.inspected[v.ID()] = i
 				if !i.active {
-					del = append(del, v)
+					l.Del(v)
 				}
 			}
 		}
@@ -239,22 +249,8 @@ func (l *Listener) Poll(ctx context.Context) error {
 			// The source found was in the inspected list of items
 			// but it is no longer present in the list of current
 			// items. Has to be deleted.
-			del = append(del, v.source)
+			l.Del(v.source)
 		}
-	}
-
-	if len(add) > 0 {
-		log.Info.Printf("Local provider: Adding sources: %v", add)
-		l.s.Put(add...)
-	}
-	if len(del) > 0 {
-		log.Info.Printf("Local provider: Deleting sources: %v", del)
-		l.s.Del(del...)
-	}
-
-	for _, v := range del {
-		// Cleanup inspections.
-		delete(l.state.inspected, v.ID())
 	}
 
 	return nil

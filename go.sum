@@ -8,6 +8,8 @@ github.com/booster-proj/proxy v0.0.0-20181019142104-6e269fd48123 h1:u9oBRPecDx92
 github.com/booster-proj/proxy v0.0.0-20181019142104-6e269fd48123/go.mod h1:5dAxiBVW7b09noqi4Kf7uKKX0KZ6IC58rv6bGPrdhMA=
 github.com/booster-proj/proxy v0.1.1 h1:VujJItcbhsSZS8TT5zkrizpgw9+dAAEiB3OPw0KrboM=
 github.com/booster-proj/proxy v0.1.1/go.mod h1:le5Yiwdxl9hONszuGsdz3dJtafDZs938B2hwn7DctAc=
+github.com/booster-proj/proxy v0.1.3 h1:DrXIF0u8A0I+2KO3FTpzMeN646i1/fVvvP8OiMVHLKU=
+github.com/booster-proj/proxy v0.1.3/go.mod h1:le5Yiwdxl9hONszuGsdz3dJtafDZs938B2hwn7DctAc=
 golang.org/x/net v0.0.0-20180801234040-f4c29de78a2a h1:8fCF9zjAir2SP3N+axz9xs+0r4V8dqPzqsWO10t8zoo=
 golang.org/x/net v0.0.0-20180801234040-f4c29de78a2a/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
 golang.org/x/net v0.0.0-20181114220301-adae6a3d119a/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
