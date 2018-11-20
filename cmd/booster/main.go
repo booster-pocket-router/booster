@@ -23,6 +23,7 @@ import (
 	"flag"
 	"os"
 	"os/signal"
+	"fmt"
 
 	"github.com/booster-proj/booster"
 	"github.com/booster-proj/booster/listener"
@@ -42,12 +43,18 @@ var (
 var port = flag.Int("port", 1080, "Server listening port")
 var rawProto = flag.String("proto", "socks5", "Proxy protocol used. Available protocols: http, socks5.")
 var verbose = flag.Bool("verbose", false, "Enable verbose mode")
+var scope = flag.String("scope", "", "If set, enables debug logging only in the desired scope")
+var printVersion = flag.Bool("version", false, "Prints version")
 
 func main() {
 	// Parse arguments
 	flag.Parse()
 
-	log.Info.Printf("version: %s, commit: %s, built at: %s", version, commit, buildTime)
+	fmt.Printf("version: %s, commit: %s, built at: %s\n\n", version, commit, buildTime)
+	if *printVersion {
+		return
+	}
+
 	if *verbose {
 		log.Info.Printf("Running in verbose mode")
 		log.SetLevel("debug")
