@@ -19,7 +19,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package listener
 
 import (
-	"context" "sync"
+	"context"
+	"sync"
 	"time"
 	"fmt"
 
