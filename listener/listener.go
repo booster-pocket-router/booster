@@ -22,7 +22,6 @@ import (
 	"context"
 	"sync"
 	"time"
-	"fmt"
 
 	"github.com/booster-proj/booster/listener/provider"
 	"github.com/booster-proj/core"
@@ -34,6 +33,9 @@ import (
 type Storage interface {
 	Put(...core.Source)
 	Del(...core.Source)
+
+	Len() int
+	Do(func(core.Source))
 }
 
 // Provider describes a service that is capable of providing sources
@@ -44,104 +46,51 @@ type Provider interface {
 	Check(context.Context, core.Source, provider.Confidence) error
 }
 
-type hookErr struct {
-	ref     string
-	network string
-	address string
-	err     error
-}
-
-type inspection struct {
-	source core.Source
-	active bool
-	confidence provider.Confidence
-	createdAt time.Time
-}
-
-type Listener struct {
-	Provider
-	s     Storage
+// Source is a source managed by the listener
+type Source struct {
+	core.Source
 
 	hooked struct {
 		sync.Mutex
-		ignore bool
-		errors []hookErr
-	}
-	state struct {
-		inspected map[string]inspection
+		Err *hookErr
 	}
 }
 
-// New creates a new Listener with the provided storage, using
-// as Provider the provider.Merged implementation.
-func New(s Storage) *Listener {
-	l := &Listener{s: s}
-	l.Provider = &provider.Merged{
-		ErrHook: func(ref, network, address string, err error) {
-			l.hooked.Lock()
-			defer l.hooked.Unlock()
-			if l.hooked.ignore {
-				return
-			}
+type hookErr struct {
+	receivedAt time.Time
+	ref        string
+	network    string
+	address    string
+	err        error
+}
 
-			log.Debug.Printf("Listener: ErrHook called from %s (net: %s, addr: %s): %v", ref, network, address, err)
+type Listener struct {
+	// Source provider.
+	Provider
 
-			if l.hooked.errors == nil {
-				l.hooked.errors = []hookErr{}
-			}
-			l.hooked.errors = append(l.hooked.errors, hookErr{
-				ref:     ref,
-				network: network,
-				address: address,
-				err:     err,
-			})
-		},
-	}
-
-	return l
+	// The location where the active sources are stored.
+	s Storage
 }
 
 var PollInterval = time.Second * 3
 var PollTimeout = time.Second * 5
 
-// Err is a Listener's critical error.
-type Err struct {
-	e error
-}
-
-func (e *Err) Error() string {
-	return "critical: " + e.e.Error()
-}
-
-// filterErr either logs the error or it returns
-// it, if it's critical.
-func filterErr(err error) error {
-	if _err, ok := err.(*Err); ok {
-		return _err
-	}
-	if err != nil {
-		log.Error.Printf("Listener error: %v", err)
-	}
-
-	return nil
-}
-
-func (l *Listener) ignoreHooks(ok bool) {
-	l.hooked.Lock()
-	defer l.hooked.Unlock()
-	l.hooked.ignore = ok
-}
-
-func (l *Listener) Put(src core.Source) {
-	log.Info.Printf("Listener: putting source: %v", src)
-	l.s.Put(src)
-}
-
-func (l *Listener) Del(src core.Source) {
-	if _, ok := l.state.inspected[src.ID()]; ok {
-		log.Info.Printf("Listener: deleting source: %v", src)
-		l.s.Del(src)
-		delete(l.state.inspected, src.ID())
+// New creates a new Listener with the provided storage, using
+// as Provider the provider.Merged implementation.
+func New(s Storage) *Listener {
+	return &Listener{
+		s: s,
+		Provider: &provider.Merged{
+			ErrHook: func(ref, network, address string, err error) {
+				_ = &hookErr{
+					receivedAt: time.Now(),
+					ref:        ref,
+					network:    network,
+					err:        err,
+				}
+				log.Debug.Printf("Listener: ErrHook called from %s (net: %s, addr: %s): %v", ref, network, address, err)
+			},
+		},
 	}
 }
 
@@ -154,11 +103,10 @@ func (l *Listener) Run(ctx context.Context) error {
 		_ctx, cancel := context.WithTimeout(ctx, PollTimeout)
 		defer cancel()
 
-		l.ignoreHooks(true)
-		if err := filterErr(l.Poll(_ctx)); err != nil {
-			return err
+		if err := l.Poll(_ctx); err != nil {
+			// Just log the error
+			log.Error.Println(err)
 		}
-		l.ignoreHooks(false)
 
 		select {
 		case <-ctx.Done():
@@ -171,88 +119,86 @@ func (l *Listener) Run(ctx context.Context) error {
 	return nil
 }
 
-func (l *Listener) makeInspection(src core.Source) inspection {
-	err := l.Check(context.Background(), src, provider.High)
-	return inspection{
-		source: src,
-		active: err == nil,
-		confidence: provider.High,
-		createdAt: time.Now(),
+// Diff returns respectively the list of items that has to be added and removed
+// from "old" to create the same list as "cur".
+func Diff(old, cur []core.Source) (add []core.Source, remove []core.Source) {
+	oldm := make(map[string]core.Source, len(old))
+	curm := make(map[string]core.Source, len(cur))
+	for _, v := range old {
+		oldm[v.ID()] = v
 	}
+	for _, v := range cur {
+		curm[v.ID()] = v
+	}
+
+	for _, v := range old {
+		// find sources to remove
+		if _, ok := curm[v.ID()]; !ok {
+			remove = append(remove, v)
+		}
+	}
+
+	for _, v := range cur {
+		// find sources to add
+		if _, ok := oldm[v.ID()]; !ok {
+			add = append(add, v)
+		}
+	}
+
+	return
 }
 
-// Pool queries the provider for a list of sources. It then inspect each
-// new source, saving into the storage the sources that provide an active 
+// Poll queries the provider for a list of sources. It then inspect each
+// new source, saving into the storage the sources that provide an active
 // internet connection and removing the ones that are no longer available.
 func (l *Listener) Poll(ctx context.Context) error {
-	if l.Provider == nil {
-		return &Err{e: fmt.Errorf("Listener is unable to poll: no provider found")}
-	}
-
+	// Fetch new & old data
 	cur, err := l.Provide(ctx)
 	if err != nil {
-		return &Err{e: err}
+		return err
 	}
 
+	old := make([]core.Source, 0, l.s.Len())
+	l.s.Do(func(src core.Source) {
+		old = append(old, src)
+	})
 
-	if l.state.inspected == nil {
-		l.state.inspected = make(map[string]inspection)
-	}
+	// Find difference from old to cur.
+	add, remove := Diff(old, cur)
 
-	curm := make(map[string]core.Source, len(cur))
-	for _, v := range cur {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		curm[v.ID()] = v
-
-		inspection, ok := l.state.inspected[v.ID()]
-		if !ok {
-			// The source found is new to the listener's eyes.
-			i := l.makeInspection(v)
-			l.state.inspected[v.ID()] = i
-			if i.active {
-				l.Put(v)
-			}
+	// Inspect the new ones, add them if they provide an internet connection.
+	for _, v := range add {
+		log.Debug.Printf("Poll: add %v?", v)
+		if err := l.Check(ctx, v, provider.High); err != nil {
+			log.Debug.Printf("Poll: unable to add source: %v", err)
 			continue
 		}
-
-		// We already know this source.
-
-		if !inspection.active {
-			// The last inspection says that this source does not
-			// actually provide an internet connection. Skip checking
-			// for hook errors.
-			continue
-		}
-
-		l.hooked.Lock()
-		for _, herr := range l.hooked.errors {
-			// Check if the source appears in the list of hooked
-			// errors, i.e. it requires further investigation.
-			if herr.ref == v.ID() {
-				i := l.makeInspection(v)
-				l.state.inspected[v.ID()] = i
-				if !i.active {
-					l.Del(v)
-				}
-			}
-		}
-		l.hooked.Unlock()
+		// New source WITH active internet connection found!
+		log.Info.Printf("Listener: adding (%v) to storage.", v)
+		l.s.Put(v)
 	}
 
-	for k, v := range l.state.inspected {
-		if _, ok := curm[k]; !ok {
-			// The source found was in the inspected list of items
-			// but it is no longer present in the list of current
-			// items. Has to be deleted.
-			l.Del(v.source)
+	// Remove what has to be removed without further investigation
+	for _, v := range remove {
+		log.Info.Printf("Listener: removing (%v) from storage.", v)
+		l.s.Del(v)
+	}
+
+	// Eventually remove the sources that contain hook errors.
+	acc := make([]core.Source, 0, l.s.Len())
+	l.s.Do(func(src core.Source) {
+		if s, ok := src.(*Source); ok {
+			s.hooked.Lock()
+			if s.hooked.Err != nil {
+				acc = append(acc, s.Source)
+			}
+			s.hooked.Unlock()
 		}
+	})
+	for _, v := range acc {
+		log.Info.Printf("Listener: removing (%v) from storage after hook error.", v)
+		l.s.Del(v)
 	}
 
 	return nil
 }
-

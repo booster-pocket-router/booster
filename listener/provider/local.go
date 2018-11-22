@@ -42,7 +42,6 @@ func (l *Local) Provide(ctx context.Context, level Confidence) ([]*source.Interf
 		}
 	}
 
-	// Update known interfaces
 	return interfaces, nil
 }
 

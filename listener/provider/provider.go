@@ -23,8 +23,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/booster-proj/core"
 	"github.com/booster-proj/booster/source"
+	"github.com/booster-proj/core"
 )
 
 type Confidence int
@@ -34,13 +34,15 @@ const (
 	High
 )
 
+type DialHook func(ref, network, address string, err error)
+
 // Merged is a provider implementation which acts as a wrapper
 // around many provider implementations.
 type Merged struct {
 	// ErrHook is set to each source that is collected by this
 	// provider. It is used to receive a callback when a source
 	// is no longer able to create network connections.
-	ErrHook func(ref, network, address string, err error)
+	ErrHook DialHook
 	local   *Local
 }
 
@@ -68,5 +70,5 @@ func (m *Merged) Check(ctx context.Context, src core.Source, level Confidence) e
 	if ifi, ok := src.(*source.Interface); ok {
 		return m.local.Check(ctx, ifi, level)
 	}
-	return fmt.Errorf("Meged provider: unable to find suitable checks for source %s", src.ID())
+	return fmt.Errorf("Merged provider: unable to find suitable checks for source %s", src.ID())
 }

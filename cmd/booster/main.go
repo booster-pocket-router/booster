@@ -21,9 +21,9 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
-	"fmt"
 
 	"github.com/booster-proj/booster"
 	"github.com/booster-proj/booster/listener"

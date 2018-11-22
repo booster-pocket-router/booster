@@ -19,8 +19,9 @@ package listener_test
 
 import (
 	"context"
-	"net"
 	"fmt"
+	"net"
+	"sort"
 	"testing"
 	"time"
 
@@ -30,7 +31,7 @@ import (
 )
 
 type mock struct {
-	id string
+	id     string
 	active bool
 }
 
@@ -45,25 +46,53 @@ func (s *mock) DialContext(ctx context.Context, network, address string) (net.Co
 	return nil, fmt.Errorf("no internet connection")
 }
 
-func (s *mock) Metrics() map[string]interface{} {
-	return make(map[string]interface{})
+func (s *mock) String() string {
+	return s.ID()
 }
 
 type storage struct {
+	data    []core.Source
 	putHook func(ss ...core.Source)
 	delHook func(ss ...core.Source)
 }
 
 func (s *storage) Put(ss ...core.Source) {
+	s.data = append(s.data, ss...)
 	if f := s.putHook; f != nil {
 		f(ss...)
 	}
 }
 
 func (s *storage) Del(ss ...core.Source) {
+	filtered := make([]core.Source, 0, len(ss))
+	filter := func(src core.Source) bool {
+		for _, v := range ss {
+			if src.ID() == v.ID() {
+				return false
+			}
+		}
+		return true
+	}
+	for _, v := range s.data {
+		if filter(v) {
+			filtered = append(filtered, v)
+		}
+	}
+
+	s.data = filtered
 	if f := s.delHook; f != nil {
 		f(ss...)
 	}
+}
+
+func (s *storage) Do(f func(core.Source)) {
+	for _, v := range s.data {
+		f(v)
+	}
+}
+
+func (s *storage) Len() int {
+	return len(s.data)
 }
 
 type mockProvider struct {
@@ -80,13 +109,12 @@ func (p *mockProvider) Provide(ctx context.Context) ([]core.Source, error) {
 
 func (p *mockProvider) Check(ctx context.Context, src core.Source, level provider.Confidence) error {
 	switch level {
-	case provider.Low:
-		return nil
 	case provider.High:
 		_, err := src.DialContext(ctx, "net", "addr")
 		return err
+	default:
+		return nil
 	}
-	return nil
 }
 
 func TestRun_cancel(t *testing.T) {
@@ -112,10 +140,88 @@ func TestRun_cancel(t *testing.T) {
 
 }
 
+func mocksFrom(s ...string) []core.Source {
+	ret := make([]core.Source, len(s))
+	for i, v := range s {
+		ret[i] = &mock{id: v}
+	}
+	return ret
+}
+
+func sameContent(a, b []core.Source) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	sortedA := make([]core.Source, len(a))
+	sortedB := make([]core.Source, len(b))
+	copy(sortedA, a)
+	copy(sortedB, b)
+
+	sort.SliceStable(sortedA, func(i, j int) bool { return sortedA[i].ID() > sortedA[j].ID() })
+	sort.SliceStable(sortedB, func(i, j int) bool { return sortedB[i].ID() > sortedB[j].ID() })
+
+	for i, v := range sortedA {
+		if v.ID() != sortedB[i].ID() {
+			return false
+		}
+	}
+	return true
+}
+
+func TestDiff(t *testing.T) {
+	tt := []struct {
+		old    []core.Source
+		cur    []core.Source
+		add    []core.Source
+		remove []core.Source
+	}{
+		{old: mocksFrom("1"), cur: mocksFrom("1", "2"), add: mocksFrom("2"), remove: mocksFrom()},
+		{old: mocksFrom("1", "2"), cur: mocksFrom("2"), add: mocksFrom(), remove: mocksFrom("1")},
+		{old: mocksFrom("1", "2"), cur: mocksFrom("1", "2"), add: mocksFrom(), remove: mocksFrom()},
+		{old: mocksFrom("1", "2"), cur: mocksFrom("3", "4"), add: mocksFrom("3", "4"), remove: mocksFrom("1", "2")},
+	}
+
+	for i, v := range tt {
+		add, remove := listener.Diff(v.old, v.cur)
+		if !sameContent(add, v.add) {
+			t.Fatalf("%d: Unexpected add context: wanted %v, found %v", i, v.add, add)
+		}
+		if !sameContent(remove, v.remove) {
+			t.Fatalf("%d: Unexpected remove context: wanted %v, found %v", i, v.remove, remove)
+		}
+
+		ccur := make([]core.Source, len(v.old), cap(v.cur)+cap(v.old))
+		copy(ccur, v.old)           // add old content
+		ccur = append(ccur, add...) // add things
+
+		// remove things
+		f := func(src core.Source) bool {
+			for _, v := range remove {
+				if v.ID() == src.ID() {
+					return false
+				}
+			}
+			return true
+		}
+
+		fccur := ccur[:0]
+		for _, v := range ccur {
+			if f(v) {
+				fccur = append(fccur, v)
+			}
+		}
+
+		if !sameContent(fccur, v.cur) {
+			t.Fatalf("%d: Unexpected final content: wanted %v, found %v", i, v.cur, fccur)
+		}
+	}
+}
+
 func TestPoll(t *testing.T) {
 	putc := make(chan core.Source, 1)
 	delc := make(chan core.Source, 1)
-	s := &storage {
+	s := &storage{
 		putHook: func(ss ...core.Source) {
 			go func() {
 				for _, v := range ss {
@@ -131,8 +237,10 @@ func TestPoll(t *testing.T) {
 			}()
 		},
 	}
+	en0 := &mock{id: "en0", active: true}
+	awl0 := &mock{id: "awl0", active: false}
 	p := &mockProvider{
-		sources: []*mock{&mock{id: "en0", active: true}, &mock{id: "awl0", active: false}},
+		sources: []*mock{en0, awl0},
 	}
 	l := listener.New(s)
 	l.Provider = p
@@ -142,30 +250,29 @@ func TestPoll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i, v := range []string{"en0"} {
+	for i, v := range []string{en0.ID()} {
 		select {
 		case s := <-putc:
 			if v != s.ID() {
 				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.ID())
 			}
-		case <-time.After(time.Millisecond*200):
+		case <-time.After(time.Millisecond * 200):
 			t.Fatalf("%d: Deadline exceeded", i)
 		}
 	}
 
-	p.sources[1].active = true // set awl0 to active
+	awl0.active = true // set awl0 to active
 	if err := l.Poll(ctx); err != nil {
 		t.Fatal(err)
 	}
 
-	// even though the source is now active, we should not
-	// be able to detect it until we remove & add the src
-	// again.
-	for i, _ := range []string{""} {
+	for i, v := range []string{awl0.ID()} {
 		select {
 		case s := <-putc:
-			t.Fatalf("%d: Unexpected source id: wanted empty, found %s", i, s.ID())
-		case <-time.After(time.Millisecond*100):
+			if v != s.ID() {
+				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.ID())
+			}
+		case <-time.After(time.Millisecond * 100):
 		}
 	}
 
@@ -174,34 +281,33 @@ func TestPoll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i, v := range []string{"awl0"} {
+	for i, v := range []string{awl0.ID()} {
 		select {
 		case s := <-delc:
 			if v != s.ID() {
 				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.ID())
 			}
-		case <-time.After(time.Millisecond*200):
+		case <-time.After(time.Millisecond * 200):
 			t.Fatalf("%d: Deadline exceeded", i)
 		}
 	}
 
 	// Add awl0 again, this time with an active internet
 	// connection.
-	p.sources = append(p.sources, &mock{id: "awl0", active: true})
+	p.sources = append(p.sources, awl0)
 
 	if err := l.Poll(ctx); err != nil {
 		t.Fatal(err)
 	}
 
-	for i, v := range []string{"awl0"} {
+	for i, v := range []string{awl0.ID()} {
 		select {
 		case s := <-putc:
 			if v != s.ID() {
 				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.ID())
 			}
-		case <-time.After(time.Millisecond*200):
+		case <-time.After(time.Millisecond * 200):
 			t.Fatalf("%d: Deadline exceeded", i)
 		}
 	}
-
 }
