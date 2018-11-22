@@ -56,6 +56,10 @@ type Source struct {
 	}
 }
 
+func (s *Source) String() string {
+	return s.ID()
+}
+
 type hookErr struct {
 	receivedAt time.Time
 	ref        string
