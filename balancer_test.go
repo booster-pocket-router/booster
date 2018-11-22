@@ -37,10 +37,6 @@ func (s *mock) DialContext(ctx context.Context, network, address string) (net.Co
 	return nil, nil
 }
 
-func (s *mock) Metrics() map[string]interface{} {
-	return make(map[string]interface{})
-}
-
 // Just test that Len does not panic.
 func TestLen(t *testing.T) {
 	b := &core.Balancer{}

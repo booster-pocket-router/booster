@@ -40,9 +40,6 @@ type Source interface {
 
 	// ID uniquely identifies a source.
 	ID() string
-
-	// Metrics provide information about the past usage of the source.
-	Metrics() map[string]interface{}
 }
 
 // Strategy chooses a source from a ring of sources.
