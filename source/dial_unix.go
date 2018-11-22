@@ -29,7 +29,7 @@ import (
 	"upspin.io/log"
 )
 
-func (i Interface) dialContext(ctx context.Context, network, address string) (net.Conn, error) {
+func (i *Interface) dialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	// Find a suitable socket address from the interface
 	var addr unix.Sockaddr
 

@@ -28,7 +28,7 @@ import (
 	"upspin.io/log"
 )
 
-func (i Interface) dialContext(ctx context.Context, network, address string) (net.Conn, error) {
+func (i *Interface) dialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	d := &net.Dialer{
 		Control: func(network, address string, c syscall.RawConn) error {
 			return c.Control(func(fd uintptr) {
