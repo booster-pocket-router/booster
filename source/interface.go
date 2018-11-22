@@ -41,7 +41,7 @@ type Interface struct {
 
 	mux sync.Mutex
 	// N is the number of network connections that
-	// the interface is currenlty handling.
+	// the interface is currently handling.
 	N int
 }
 
