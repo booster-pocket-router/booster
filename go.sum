@@ -1,5 +1,7 @@
 github.com/booster-proj/core v0.1.1 h1:aUJ1quqw1Jxt86p07gmW7FB5GNB90+w1BM/zh7hnKc8=
 github.com/booster-proj/core v0.1.1/go.mod h1:S45p4xcXkvm8HMxPunhHqmMWC2xeaKb2ZqIqLBjnMN4=
+github.com/booster-proj/core v0.1.2 h1:Q4gYGaPB7MXR9FUkDJKEuLOAVC5k/B2MyyJXrYSi6mA=
+github.com/booster-proj/core v0.1.2/go.mod h1:S45p4xcXkvm8HMxPunhHqmMWC2xeaKb2ZqIqLBjnMN4=
 github.com/booster-proj/log v0.0.0-20181018152734-1237d1c945a4 h1:tFWX9r7OjrMXGbKscxezPtNIqkrV7j9/cKGzNlf5ObE=
 github.com/booster-proj/log v0.0.0-20181018152734-1237d1c945a4/go.mod h1:DqLh+BshcSvoy7vIjff2JF5Z3dRMxhuK/+GA/fDIP1Q=
 github.com/booster-proj/log v0.0.0-20181025133937-1bd4e6a7946f h1:WWqYAMNtqAB/MWZYn0vbl8q0PMkkmH8PvGODlWxzcXU=
