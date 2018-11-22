@@ -82,13 +82,26 @@ func New(s Storage) *Listener {
 		s: s,
 		Provider: &provider.Merged{
 			ErrHook: func(ref, network, address string, err error) {
-				_ = &hookErr{
+				log.Debug.Printf("Listener: ErrHook called from %s (net: %s, addr: %s): %v", ref, network, address, err)
+
+				hookErr := &hookErr{
 					receivedAt: time.Now(),
 					ref:        ref,
 					network:    network,
 					err:        err,
 				}
-				log.Debug.Printf("Listener: ErrHook called from %s (net: %s, addr: %s): %v", ref, network, address, err)
+
+				s.Do(func(src core.Source) {
+					if src.ID() != ref {
+						return
+					}
+
+					if v, ok := src.(*Source); ok {
+						v.hooked.Lock()
+						v.hooked.Err = hookErr
+						v.hooked.Unlock()
+					}
+				})
 			},
 		},
 	}
@@ -175,7 +188,7 @@ func (l *Listener) Poll(ctx context.Context) error {
 		}
 		// New source WITH active internet connection found!
 		log.Info.Printf("Listener: adding (%v) to storage.", v)
-		l.s.Put(v)
+		l.s.Put(&Source{Source: v})
 	}
 
 	// Remove what has to be removed without further investigation
