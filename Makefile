@@ -30,7 +30,7 @@ test:
 
 .PHONY: format
 format:
-	$Q gofmt -w $(gofiles)
+	$Q gofmt -s -w $(gofiles)
 
 .PHONY: release
 release:

@@ -115,7 +115,7 @@ func captureSignals(cancel context.CancelFunc) {
 	signal.Notify(c, os.Interrupt, os.Kill)
 
 	go func() {
-		for _ = range c {
+		for range c {
 			cancel()
 		}
 	}()
