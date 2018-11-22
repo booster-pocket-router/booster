@@ -204,13 +204,18 @@ func (l *Listener) Poll(ctx context.Context) error {
 			s.hooked.Lock()
 			if s.hooked.Err != nil {
 				acc = append(acc, s.Source)
+				s.hooked.Err = nil // cleanup handled error.
 			}
 			s.hooked.Unlock()
 		}
 	})
 	for _, v := range acc {
-		log.Info.Printf("Listener: removing (%v) from storage after hook error.", v)
-		l.s.Del(v)
+		// We collected a hook error. This does not mean that the source does
+		// not provide an internet connection.
+		if err := l.Check(ctx, v, provider.High); err != nil {
+			log.Info.Printf("Listener: removing (%v) from storage after hook error.", v)
+			l.s.Del(v)
+		}
 	}
 
 	return nil
