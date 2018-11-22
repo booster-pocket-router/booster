@@ -17,6 +17,7 @@ As [snap](https://snapcraft.io/store) on **any** linux distribution
 sudo snap install booster --beta
 ```   
 Note that `booster` requires **root** privileges to work (linux only).   
+  
 [![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/booster)
 #### From source
 First [install go](https://golang.org/doc/install), then type this commands into your command line:   
