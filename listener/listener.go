@@ -133,7 +133,6 @@ func (l *Listener) Run(ctx context.Context) error {
 			// Wait before polling again.
 		}
 	}
-	return nil
 }
 
 // Diff returns respectively the list of items that has to be added and removed
