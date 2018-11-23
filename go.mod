@@ -1,7 +1,7 @@
 module github.com/booster-proj/booster
 
 require (
-	github.com/booster-proj/core v0.1.2
+	github.com/booster-proj/core v0.1.3
 	github.com/booster-proj/log v0.0.0-20181025133937-1bd4e6a7946f // indirect
 	github.com/booster-proj/proxy v0.1.3
 	golang.org/x/net v0.0.0-20181114220301-adae6a3d119a // indirect
