@@ -18,23 +18,6 @@ builds:
       - 6
       - 7
     ldflags: -s -w -X main.version=v{{.Version}} -X main.commit={{.ShortCommit}} -X main.buildTime={{.Date}}
-  - 
-    env:
-      - GO111MODULE=on
-    main: cmd/daemon/main.go
-    binary: daemon
-    goos:
-      - darwin
-      - linux
-    goarch:
-      - amd64
-      - 386
-      - arm
-    goarm:
-      - 6
-      - 7
-    ldflags: -s -w -X main.version=v{{.Version}} -X main.commit={{.ShortCommit}} -X main.buildTime={{.Date}}
-
 sign:
   artifacts: checksum
 
@@ -60,7 +43,8 @@ snapcraft:
   confinement: strict
 
   apps:
-    daemon:
+    booster:
       plugs: [network, network-bind]
       daemon: simple
+      args: --external-log
       

@@ -22,6 +22,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	stdLog "log"
 	"os"
 	"os/signal"
 
@@ -40,11 +41,17 @@ var (
 	buildTime = "N/A"
 )
 
+// Commands
+var printVersion = flag.Bool("version", false, "Prints version")
+
+// Proxy configuration
 var port = flag.Int("port", 1080, "Server listening port")
 var rawProto = flag.String("proto", "socks5", "Proxy protocol used. Available protocols: http, socks5.")
-var verbose = flag.Bool("verbose", false, "Enable verbose mode")
+
+// Log configuration
+var verbose = flag.Bool("verbose", false, "If set, makes the logger print also debug messages")
 var scope = flag.String("scope", "", "If set, enables debug logging only in the desired scope")
-var printVersion = flag.Bool("version", false, "Prints version")
+var externalLog = flag.Bool("external-log", false, "If set, assumes that the loggin is handled by a third party entity")
 
 func main() {
 	// Parse arguments
@@ -55,9 +62,15 @@ func main() {
 		return
 	}
 
+	// Setup logger
+	level := log.InfoLevel
 	if *verbose {
-		log.Info.Printf("Running in verbose mode")
 		log.SetLevel("debug")
+		level = log.DebugLevel
+	}
+	if *externalLog {
+		log.SetOutput(nil)                     // disable "local" logging
+		log.Register(newExternalLogger(level)) // enable "remote" (snapcraft's daemon handled logger usually) logging
 	}
 
 	if *rawProto == "" {
@@ -118,4 +131,27 @@ func captureSignals(cancel context.CancelFunc) {
 			cancel()
 		}
 	}()
+}
+
+type externalLogger struct {
+	defaultLogger log.Logger
+	level         log.Level
+}
+
+func newExternalLogger(level log.Level) *externalLogger {
+	return &externalLogger{
+		level:         level,
+		defaultLogger: stdLog.New(os.Stderr, "", 0), // Do not add date/time information
+	}
+}
+
+func (l *externalLogger) Log(level log.Level, msg string) {
+	if level < l.level {
+		return
+	}
+
+	l.defaultLogger.Println(msg)
+}
+
+func (l *externalLogger) Flush() {
 }
