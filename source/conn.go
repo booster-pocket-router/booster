@@ -18,10 +18,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package source
 
 import (
-	"net"
-	"time"
 	"fmt"
 	"math/rand"
+	"net"
+	"time"
 )
 
 // conn is a wrapper around net.Conn, with the addition of some functions
@@ -30,9 +30,9 @@ import (
 type conn struct {
 	net.Conn
 
-	id string
-	ref string // Reference identifier, usually the parent's source identifier.
-	closed bool
+	id      string
+	ref     string // Reference identifier, usually the parent's source identifier.
+	closed  bool
 	onClose func(string) // Callback for close event.
 }
 
@@ -45,8 +45,8 @@ func newConn(c net.Conn, ref string) *conn {
 
 	return &conn{
 		Conn: c,
-		id: uuid,
-		ref: ref,
+		id:   uuid,
+		ref:  ref,
 	}
 }
 

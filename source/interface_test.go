@@ -18,8 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package source_test
 
 import (
-	"testing"
 	"net"
+	"testing"
 
 	"github.com/booster-proj/booster/source"
 )
@@ -50,4 +50,3 @@ func TestFollow(t *testing.T) {
 		t.Fatalf("Unexpected Len: wanted 0, found %d", l)
 	}
 }
-

@@ -22,9 +22,9 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"sync"
-	"fmt"
 
 	"upspin.io/log"
 )
