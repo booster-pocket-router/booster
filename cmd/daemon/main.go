@@ -31,8 +31,8 @@ import (
 	"github.com/booster-proj/core"
 	"github.com/booster-proj/proxy"
 	"golang.org/x/sync/errgroup"
-	"upspin.io/log"
 	stdLog "log"
+	"upspin.io/log"
 )
 
 // Version and BuildTime are filled in during build by the Makefile
@@ -56,7 +56,7 @@ func main() {
 	if *verbose {
 		level = log.DebugLevel
 	}
-	log.SetOutput(nil) // disable "local" logging
+	log.SetOutput(nil)                     // disable "local" logging
 	log.Register(newExternalLogger(level)) // enable "remote" (snapcraft's daemon handled logger usually) logging
 
 	p, err := proxy.NewSOCKS5()
@@ -104,12 +104,12 @@ func captureSignals(cancel context.CancelFunc) {
 
 type externalLogger struct {
 	defaultLogger log.Logger
-	level log.Level
+	level         log.Level
 }
 
 func newExternalLogger(level log.Level) *externalLogger {
-	return &externalLogger {
-		level: level,
+	return &externalLogger{
+		level:         level,
 		defaultLogger: stdLog.New(os.Stderr, "", 0), // Do not add date/time information
 	}
 }
@@ -124,4 +124,3 @@ func (l *externalLogger) Log(level log.Level, msg string) {
 
 func (l *externalLogger) Flush() {
 }
-
