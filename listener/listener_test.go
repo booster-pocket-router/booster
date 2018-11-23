@@ -46,6 +46,10 @@ func (s *mock) DialContext(ctx context.Context, network, address string) (net.Co
 	return nil, fmt.Errorf("no internet connection")
 }
 
+func (s *mock) Close() error {
+	return nil
+}
+
 func (s *mock) String() string {
 	return s.ID()
 }
