@@ -82,7 +82,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Create a booster instance that uses the colelcted interfaces as sources
 	b := new(core.Balancer)
 	l := listener.New(b)
 	d := booster.New(b)

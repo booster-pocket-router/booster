@@ -22,6 +22,7 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"sync"
 
@@ -39,29 +40,20 @@ type Interface struct {
 	// dialer is not able to create a network connection.
 	ErrHook func(ref, network, address string, err error)
 
-	mux sync.Mutex
-	// N is the number of network connections that
-	// the interface is currently handling.
-	N int
+	conns struct {
+		sync.Mutex
+		val map[string]*conn
+	}
 }
 
-func (i *Interface) String() string {
-	return i.ID()
-}
-
-func (i *Interface) Add(val int) int {
-	i.mux.Lock()
-	defer i.mux.Unlock()
-
-	i.N += val
-	return i.N
+func (i *Interface) ID() string {
+	return i.Name
 }
 
 func (i *Interface) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	// Implementations of the `dialContext` function can be found
 	// in the {unix, linux}_dial.go files.
-
-	c, err := i.dialContext(ctx, network, address)
+	conn, err := i.dialContext(ctx, network, address)
 	if err != nil {
 		if f := i.ErrHook; f != nil {
 			f(i.ID(), network, address, err)
@@ -69,45 +61,72 @@ func (i *Interface) DialContext(ctx context.Context, network, address string) (n
 		return nil, err
 	}
 
-	conn := &Conn{
-		Conn: c,
-		Add:  i.Add,
-		Ref:  i.ID(),
-	}
-
-	n := conn.Add(1)
-	log.Debug.Printf("Interface (ref: %v): Opening connection to(%v), left(%d)", conn.Ref, c.RemoteAddr(), n)
+	// Follow the new connection if possible
+	go func() {
+		if err := i.Follow(conn); err != nil {
+			log.Error.Println(err)
+		}
+	}()
 
 	return conn, nil
 }
 
-func (i *Interface) ID() string {
-	return i.Name
-}
+// Follow adds conn to the list of connections that the source is handling.
+// The connection is left intact even in case of error, in which case the
+// connection is simply ignored by the interface.
+func (i *Interface) Follow(c net.Conn) error {
+	wc := newConn(c, i.ID()) // wrapped connection
 
-func (i *Interface) Metrics() map[string]interface{} {
-	return make(map[string]interface{})
-}
+	i.conns.Lock()
+	defer i.conns.Unlock()
 
-type Conn struct {
-	net.Conn
-	Ref string // Reference identifier
-	Add func(val int) int
-
-	closed bool
-}
-
-func (c *Conn) Close() error {
-	if c.closed {
-		// Multiple parts of the code might try to close the connection. Better be sure
-		// that the underlying connection gets closed at some point, leave that code and
-		// avoid repetitions here.
-		return nil
+	if i.conns.val == nil {
+		i.conns.val = make(map[string]*conn)
 	}
 
-	n := c.Add(-1)
-	log.Debug.Printf("Interface (ref: %v): Closing connection to(%v), left(%d)", c.Ref, c.RemoteAddr(), n)
-	c.closed = true
+	if _, ok := i.conns.val[wc.uuid()]; ok {
+		// Another connection with the same identifier as this one is already in
+		// process. The connection identifiers are supposed to be unique, so this
+		// means that we'll not be able to follow this connection.
+		return fmt.Errorf("DialContext: discarding connection (id: %s) because source (%s) has a connection in process with the same identifier", wc.uuid(), i.ID())
+	}
 
-	return c.Conn.Close()
+	wc.onClose = func(id string) {
+		// Be careful with race condition with the Close funtion here.
+		i.conns.Lock()
+		delete(i.conns.val, id)
+		i.conns.Unlock()
+	}
+	i.conns.val[wc.uuid()] = wc
+
+	return nil
+}
+
+func (i *Interface) Close() error {
+	i.conns.Lock()
+	for _, v := range i.conns.val {
+		// Call close on each connection, but make the code run
+		// after this loop as ended.
+		defer v.Close()
+
+	}
+	i.conns.Unlock()
+
+	return nil
+}
+
+func (i *Interface) String() string {
+	return i.ID()
+}
+
+// Len returns the size
+func (i *Interface) Len() int {
+	i.conns.Lock()
+	defer i.conns.Unlock()
+
+	if i.conns.val == nil {
+		return 0
+	}
+
+	return len(i.conns.val)
 }
