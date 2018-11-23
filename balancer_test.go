@@ -21,12 +21,18 @@ import (
 	"context"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/booster-proj/core"
 )
 
 type mock struct {
 	id string
+	closeHook func()
+}
+
+func newMock(id string) *mock {
+	return &mock{id: id}
 }
 
 func (s *mock) ID() string {
@@ -35,6 +41,13 @@ func (s *mock) ID() string {
 
 func (s *mock) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	return nil, nil
+}
+
+func (s *mock) Close() error {
+	if f := s.closeHook; f != nil {
+		go f()
+	}
+	return nil
 }
 
 // Just test that Len does not panic.
@@ -48,7 +61,7 @@ func TestLen(t *testing.T) {
 // Just test that put does not panic.
 func TestPut(t *testing.T) {
 	b := &core.Balancer{}
-	s := &mock{"s0"}
+	s := newMock("s0")
 
 	t.Logf("Put %v into balancer(size: %d)", s, b.Len())
 	b.Put(s)
@@ -66,7 +79,7 @@ func TestPut(t *testing.T) {
 
 func TestPut_empty(t *testing.T) {
 	b := &core.Balancer{}
-	s := &mock{"s0"}
+	s := newMock("s0")
 
 	t.Logf("Put %v into balancer(size: %d, value: %+v)", s, b.Len(), b)
 	b.Put(s)
@@ -84,9 +97,9 @@ func TestGet_roundRobin(t *testing.T) {
 		t.Fatal("Unexpected nil error with empty balancer")
 	}
 
-	s0 := &mock{"s0"}
-	s1 := &mock{"s1"}
-	s2 := &mock{"s2"}
+	s0 := newMock("s0")
+	s1 := newMock("s1")
+	s2 := newMock("s2")
 
 	b.Put(s0, s1, s2)
 
@@ -112,8 +125,8 @@ func TestGet_roundRobin(t *testing.T) {
 func TestGetBlacklist_roundRobin(t *testing.T) {
 	b := &core.Balancer{}
 
-	s0 := &mock{"s0"}
-	s1 := &mock{"s1"}
+	s0 := newMock("s0")
+	s1 := newMock("s1")
 
 	b.Put(s0, s1)
 
@@ -134,13 +147,19 @@ func TestGetBlacklist_roundRobin(t *testing.T) {
 func TestDel(t *testing.T) {
 	b := &core.Balancer{}
 
-	s0 := &mock{"s0"}
-	s1 := &mock{"s1"}
+	s0 := newMock("s0")
+	s1 := newMock("s1")
 
 	b.Put(s0, s1)
 
 	n := b.Len()
 	t.Logf("Inserted %v elements into previously emtpy balancer", n)
+
+	c := make(chan bool, 1)
+	s0.closeHook = func() {
+		t.Log("closeHook() called")
+		c <- true
+	}
 
 	b.Del(s0)
 
@@ -154,5 +173,12 @@ func TestDel(t *testing.T) {
 			t.Fatalf("Unexpected source ID: wanted s1, found %v", s.ID())
 		}
 	})
+
+	select {
+	case <-c:
+		return
+	case <-time.After(time.Millisecond):
+		t.Fatal("closeHook was not called")
+	}
 }
 

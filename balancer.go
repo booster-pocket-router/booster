@@ -40,6 +40,9 @@ type Source interface {
 
 	// ID uniquely identifies a source.
 	ID() string
+
+	// Tells the receiver to cleanup and close all connections.
+	Close() error
 }
 
 // Strategy chooses a source from a ring of sources.
@@ -157,6 +160,9 @@ func (b *Balancer) Del(ss ...Source) {
 			// If this source is not contained in the map, add it to the
 			// list of accepted sources.
 			l = append(l, s)
+		} else {
+			// This source will be removed.
+			s.Close()
 		}
 	})
 

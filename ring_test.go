@@ -32,7 +32,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestNewSources(t *testing.T) {
-	s := &mock{}
+	s := newMock("")
 	r := core.NewRingSources(s)
 	if r == nil {
 		t.Fatal("Unexpected nil ring")
@@ -51,7 +51,7 @@ func TestGetSetSource(t *testing.T) {
 	}
 
 	// set a source
-	src := &mock{}
+	src := newMock("")
 	r.Set(src)
 
 	// retrieve it
@@ -64,7 +64,7 @@ func TestNextPrev(t *testing.T) {
 	r := core.NewRing(4)
 	for i := 0; i < r.Len(); i++ {
 		s := fmt.Sprintf("%d", i)
-		r.Set(&mock{s})
+		r.Set(newMock(s))
 		r.Next()
 	}
 
@@ -92,8 +92,8 @@ func TestLink(t *testing.T) {
 	for i := 0; i < n; i++ {
 		s0 := fmt.Sprintf("%d", i)
 		s1 := fmt.Sprintf("%d", i+n)
-		r0.Set(&mock{s0})
-		r1.Set(&mock{s1})
+		r0.Set(newMock(s0))
+		r1.Set(newMock(s1))
 
 		r0.Next()
 		r1.Next()
@@ -143,7 +143,7 @@ func TestUnlink(t *testing.T) {
 	r := core.NewRing(4)
 	for i := 0; i < r.Len(); i++ {
 		s := fmt.Sprintf("%d", i)
-		r.Set(&mock{s})
+		r.Set(newMock(s))
 		r.Next()
 	}
 
