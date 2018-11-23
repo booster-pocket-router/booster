@@ -27,7 +27,7 @@ import (
 )
 
 type mock struct {
-	id string
+	id        string
 	closeHook func()
 }
 
@@ -181,4 +181,3 @@ func TestDel(t *testing.T) {
 		t.Fatal("closeHook was not called")
 	}
 }
-
