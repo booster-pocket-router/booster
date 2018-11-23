@@ -60,8 +60,6 @@ snapcraft:
   confinement: strict
 
   apps:
-    booster:
-      plugs: [network, network-bind]
     daemon:
       plugs: [network, network-bind]
       daemon: simple
