@@ -41,17 +41,19 @@ var (
 	buildTime = "N/A"
 )
 
-// Commands
-var printVersion = flag.Bool("version", false, "Prints version")
+var (
+	// Commands
+	printVersion = flag.Bool("version", false, "Prints version")
 
-// Proxy configuration
-var port = flag.Int("port", 1080, "Server listening port")
-var rawProto = flag.String("proto", "socks5", "Proxy protocol used. Available protocols: http, socks5.")
+	// Proxy configuration
+	port     = flag.Int("port", 1080, "Server listening port")
+	rawProto = flag.String("proto", "socks5", "Proxy protocol used. Available protocols: http, socks5.")
 
-// Log configuration
-var verbose = flag.Bool("verbose", false, "If set, makes the logger print also debug messages")
-var scope = flag.String("scope", "", "If set, enables debug logging only in the desired scope")
-var externalLog = flag.Bool("external-log", false, "If set, assumes that the loggin is handled by a third party entity")
+	// Log configuration
+	verbose     = flag.Bool("verbose", false, "If set, makes the logger print also debug messages")
+	scope       = flag.String("scope", "", "If set, enables debug logging only in the desired scope")
+	externalLog = flag.Bool("external-log", false, "If set, assumes that the loggin is handled by a third party entity")
+)
 
 func main() {
 	// Parse arguments
