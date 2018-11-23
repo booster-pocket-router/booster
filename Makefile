@@ -14,15 +14,11 @@ bind = "$(CURDIR)/bin/$(GOOS)$(arch)"
 go = $(env GO111MODULE=on go)
 
 .PHONY: all
-all: booster daemon
+all: booster
 
 .PHONY: booster
 booster:
 	$Q go build $(if $V,-v) -o $(bind)/booster $(VERSION_FLAGS) $(CURDIR)/cmd/booster
-
-.PHONY: daemon
-daemon:
-	$Q go build $(if $V,-v) -o $(bind)/daemon $(VERSION_FLAGS) $(CURDIR)/cmd/daemon
 
 .PHONY: clean
 clean:
