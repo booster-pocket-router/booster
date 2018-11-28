@@ -13,7 +13,7 @@ While more and more people today have a fast Internet connection, there are plen
 #### Binary
 Pick your [release](https://github.com/booster-proj/booster/releases).
 #### Snap
-[![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-white.svg)](https://snapcraft.io/booster)  
+[![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/booster)
 #### From source
 First [install go](https://golang.org/doc/install), then type this commands into your command line:   
 ``` bash
