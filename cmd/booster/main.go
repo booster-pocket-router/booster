@@ -23,7 +23,6 @@ import (
 	"flag"
 	"fmt"
 	stdLog "log"
-	"net/http"
 	"os"
 	"os/signal"
 
@@ -105,7 +104,7 @@ func main() {
 	b := new(core.Balancer)
 	l := listener.New(b)
 	d := booster.New(b)
-	r := remote.New(http.DefaultServeMux)
+	r := remote.New(remote.NewRouter())
 
 	// Make the proxy use booster as dialer
 	p.DialWith(d)

@@ -18,13 +18,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package remote
 
 import (
-	"github.com/gorilla/mux"
+	"net/http"
+
+	"upspin.io/log"
 )
 
-func NewRouter() *mux.Router {
-	r := mux.NewRouter()
-	r.HandleFunc("/_health", healthCheckHandler)
-	r.Use(loggingMiddleware)
-
-	return r
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[%v] %v", r.Method, r.RequestURI)
+		next.ServeHTTP(w, r)
+	})
 }

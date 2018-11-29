@@ -18,9 +18,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package remote_test
 
 import (
-	"testing"
-	"net/http"
 	"context"
+	"net/http"
+	"testing"
 	"time"
 
 	"github.com/booster-proj/booster/remote"
@@ -38,7 +38,7 @@ func TestListenAndServe(t *testing.T) {
 
 	cancel()
 	select {
-	case <-time.After(100*time.Millisecond):
+	case <-time.After(100 * time.Millisecond):
 		t.Fatal("shutdown timeout")
 	case <-c:
 	}

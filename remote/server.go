@@ -18,10 +18,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package remote
 
 import (
-	"net/http"
-	"fmt"
-	"time"
 	"context"
+	"fmt"
+	"net/http"
+	"time"
 )
 
 type Remote struct {
@@ -29,12 +29,12 @@ type Remote struct {
 }
 
 func New(h http.Handler) *Remote {
-	return &Remote {
-		&http.Server {
+	return &Remote{
+		&http.Server{
 			WriteTimeout: time.Second * 15,
 			ReadTimeout:  time.Second * 15,
 			IdleTimeout:  time.Second * 60,
-			Handler: h,
+			Handler:      h,
 		},
 	}
 }
@@ -48,7 +48,7 @@ func (r *Remote) ListenAndServe(ctx context.Context, port int) error {
 
 	select {
 	case <-ctx.Done():
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 
 		r.Shutdown(ctx)

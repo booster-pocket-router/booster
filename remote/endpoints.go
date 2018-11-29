@@ -18,13 +18,17 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package remote
 
 import (
-	"github.com/gorilla/mux"
+	"encoding/json"
+	"net/http"
 )
 
-func NewRouter() *mux.Router {
-	r := mux.NewRouter()
-	r.HandleFunc("/_health", healthCheckHandler)
-	r.Use(loggingMiddleware)
+func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
 
-	return r
+	json.NewEncoder(w).Encode(struct {
+		Alive bool `json:"alive"`
+	}{
+		Alive: true,
+	})
 }
