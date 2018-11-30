@@ -25,9 +25,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/booster-proj/booster/core"
 	"github.com/booster-proj/booster/source"
 	"github.com/booster-proj/booster/source/provider"
-	"github.com/booster-proj/booster/core"
 )
 
 type mock struct {

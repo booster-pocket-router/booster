@@ -23,8 +23,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/booster-proj/booster/source/provider"
 	"github.com/booster-proj/booster/core"
+	"github.com/booster-proj/booster/source/provider"
 	"upspin.io/log"
 )
 

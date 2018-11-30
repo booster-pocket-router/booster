@@ -21,7 +21,6 @@ import (
 	"github.com/booster-proj/core"
 )
 
-
 // A Policy is a simple function that takes a source as
 // input and returns wether it should be accepted or not.
 type Policy func(core.Source) (bool, error)

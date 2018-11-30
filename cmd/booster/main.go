@@ -27,9 +27,9 @@ import (
 	"os/signal"
 
 	"github.com/booster-proj/booster"
-	"github.com/booster-proj/booster/source"
-	"github.com/booster-proj/booster/remote"
 	"github.com/booster-proj/booster/core"
+	"github.com/booster-proj/booster/remote"
+	"github.com/booster-proj/booster/source"
 	"github.com/booster-proj/proxy"
 	"golang.org/x/sync/errgroup"
 	"upspin.io/log"
