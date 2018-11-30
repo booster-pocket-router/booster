@@ -21,7 +21,7 @@ import (
 	"context"
 	"net"
 
-	"github.com/booster-proj/core"
+	"github.com/booster-proj/booster/core"
 	"upspin.io/log"
 )
 

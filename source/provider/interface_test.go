@@ -21,7 +21,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/booster-proj/booster/listener/provider"
+	"github.com/booster-proj/booster/source/provider"
 )
 
 func TestFollow(t *testing.T) {

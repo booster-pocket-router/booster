@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/booster-proj/booster/listener/provider"
+	"github.com/booster-proj/booster/source/provider"
 	"github.com/booster-proj/core"
 )
 

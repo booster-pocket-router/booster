@@ -23,7 +23,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/booster-proj/core"
+	"github.com/booster-proj/booster/core"
 )
 
 type Confidence int

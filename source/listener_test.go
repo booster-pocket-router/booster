@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package listener_test
+package source_test
 
 import (
 	"context"
@@ -25,9 +25,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/booster-proj/booster/listener"
-	"github.com/booster-proj/booster/listener/provider"
-	"github.com/booster-proj/core"
+	"github.com/booster-proj/booster/source"
+	"github.com/booster-proj/booster/source/provider"
+	"github.com/booster-proj/booster/core"
 )
 
 type mock struct {
@@ -123,7 +123,7 @@ func (p *mockProvider) Check(ctx context.Context, src core.Source, level provide
 
 func TestRun_cancel(t *testing.T) {
 	s := new(storage)
-	l := listener.New(s)
+	l := source.NewListener(s)
 	c := make(chan error)
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
@@ -187,7 +187,7 @@ func TestDiff(t *testing.T) {
 	}
 
 	for i, v := range tt {
-		add, remove := listener.Diff(v.old, v.cur)
+		add, remove := source.Diff(v.old, v.cur)
 		if !sameContent(add, v.add) {
 			t.Fatalf("%d: Unexpected add context: wanted %v, found %v", i, v.add, add)
 		}
@@ -246,7 +246,7 @@ func TestPoll(t *testing.T) {
 	p := &mockProvider{
 		sources: []*mock{en0, awl0},
 	}
-	l := listener.New(s)
+	l := source.NewListener(s)
 	l.Provider = p
 
 	ctx := context.Background()

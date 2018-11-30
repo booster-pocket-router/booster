@@ -16,15 +16,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Package listener provides a functionalities to discover and inspect
 // sources.
-package listener
+package source
 
 import (
 	"context"
 	"sync"
 	"time"
 
-	"github.com/booster-proj/booster/listener/provider"
-	"github.com/booster-proj/core"
+	"github.com/booster-proj/booster/source/provider"
+	"github.com/booster-proj/booster/core"
 	"upspin.io/log"
 )
 
@@ -79,9 +79,9 @@ type Listener struct {
 var PollInterval = time.Second * 3
 var PollTimeout = time.Second * 5
 
-// New creates a new Listener with the provided storage, using
+// NewListener creates a new Listener with the provided storage, using
 // as Provider the provider.Merged implementation.
-func New(s Storage) *Listener {
+func NewListener(s Storage) *Listener {
 	return &Listener{
 		s: s,
 		Provider: &provider.Merged{

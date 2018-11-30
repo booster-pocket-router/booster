@@ -27,9 +27,9 @@ import (
 	"os/signal"
 
 	"github.com/booster-proj/booster"
-	"github.com/booster-proj/booster/listener"
+	"github.com/booster-proj/booster/source"
 	"github.com/booster-proj/booster/remote"
-	"github.com/booster-proj/core"
+	"github.com/booster-proj/booster/core"
 	"github.com/booster-proj/proxy"
 	"golang.org/x/sync/errgroup"
 	"upspin.io/log"
@@ -102,7 +102,8 @@ func main() {
 	}
 
 	b := new(core.Balancer)
-	l := listener.New(b)
+	rs := source.NewRuledStorage(b)
+	l := source.NewListener(rs)
 	d := booster.New(b)
 	r := remote.New(remote.NewRouter())
 
