@@ -18,7 +18,7 @@ package source
 
 import (
 	"fmt"
-	"github.com/booster-proj/core"
+	"github.com/booster-proj/booster/core"
 )
 
 // A Policy is a simple function that takes a source as
