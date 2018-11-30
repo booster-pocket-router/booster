@@ -19,6 +19,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"sync"
@@ -49,7 +50,7 @@ func (i *Interface) ID() string {
 
 func (i *Interface) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	// Implementations of the `dialContext` function can be found
-	// in the {unix, linux}_dial.go files.
+	// in the {darwin, linux, windows}_dial.go files.
 	conn, err := i.dialContext(ctx, network, address)
 	if err != nil {
 		if f := i.ErrHook; f != nil {
@@ -126,4 +127,12 @@ func (i *Interface) Len() int {
 	}
 
 	return len(i.conns.val)
+}
+
+func (i *Interface) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct{
+		Name string `json:"name"`
+	}{
+		Name: i.Name,
+	})
 }
