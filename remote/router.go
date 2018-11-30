@@ -18,13 +18,39 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package remote
 
 import (
+	"net/http"
+
 	"github.com/gorilla/mux"
+	"github.com/booster-proj/booster/core"
 )
 
-func NewRouter() *mux.Router {
-	r := mux.NewRouter()
-	r.HandleFunc("/_health", healthCheckHandler)
-	r.Use(loggingMiddleware)
+type StaticInfo struct {
+	Version string `json:"version"`
+	Commit string `json:"commit"`
+	BuildTime string `json:"build_time"`
 
-	return r
+	ProxyPort int `json:"proxy_port"`
+	ProxyProto string `json:"proxy_proto"`
+}
+
+type Router struct {
+	r *mux.Router
+
+	Info StaticInfo
+	SourceEnum func(func(core.Source))
+}
+
+func NewRouter() *Router {
+	return &Router{r: mux.NewRouter()}
+}
+
+func (r *Router) SetupRoutes() {
+	router := r.r
+	router.HandleFunc("/_health", makeHealthCheckHandler(r.Info))
+	router.HandleFunc("/sources", makeListSourcesHandler(r.SourceEnum))
+	router.Use(loggingMiddleware)
+}
+
+func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	r.r.ServeHTTP(w, req)
 }

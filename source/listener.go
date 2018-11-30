@@ -223,3 +223,7 @@ func (l *Listener) Poll(ctx context.Context) error {
 
 	return nil
 }
+
+func (l *Listener) Do(f func(core.Source)) {
+	l.s.Do(f)
+}

@@ -101,11 +101,24 @@ func main() {
 		log.Fatal(err)
 	}
 
+	info := remote.StaticInfo{
+		Version: version,
+		Commit: commit,
+		BuildTime: buildTime,
+		ProxyPort: *pPort,
+		ProxyProto: *rawProto,
+	}
+
 	b := new(core.Balancer)
 	rs := source.NewRuledStorage(b)
 	l := source.NewListener(rs)
 	d := booster.New(b)
-	r := remote.New(remote.NewRouter())
+
+	router := remote.NewRouter()
+	router.Info = info
+	router.SourceEnum = l.Do
+	router.SetupRoutes()
+	r := remote.New(router)
 
 	// Make the proxy use booster as dialer
 	p.DialWith(d)

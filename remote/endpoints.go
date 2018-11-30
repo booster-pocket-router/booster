@@ -20,15 +20,45 @@ package remote
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/booster-proj/booster/core"
 )
 
-func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
+func makeHealthCheckHandler(info StaticInfo) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
 
-	json.NewEncoder(w).Encode(struct {
-		Alive bool `json:"alive"`
-	}{
-		Alive: true,
-	})
+		json.NewEncoder(w).Encode(struct {
+			Alive bool `json:"alive"`
+			StaticInfo
+		}{
+			Alive: true,
+			StaticInfo: info,
+		})
+	}
 }
+
+func makeListSourcesHandler(do func(func(core.Source))) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+
+		acc := []interface{}{}
+		do(func(s core.Source) {
+			acc = append(acc, struct{
+				Name string `json:"name"`
+			}{
+				Name: s.ID(),
+			})
+		})
+
+
+		json.NewEncoder(w).Encode(struct{
+			Sources []interface{} `json:"sources"`
+		}{
+			Sources: acc,
+		})
+	}
+}
+

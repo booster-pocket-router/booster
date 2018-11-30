@@ -50,6 +50,10 @@ func (rs *RuledStorage) AddPolicy(id string, p Policy) error {
 	return nil
 }
 
+func (rs *RuledStorage) DelPolicy(id string) {
+	delete(rs.policies, id)
+}
+
 func ApplyPolicy(s core.Source, policies ...Policy) error {
 	for _, p := range policies {
 		if accepted, err := p(s); !accepted {
