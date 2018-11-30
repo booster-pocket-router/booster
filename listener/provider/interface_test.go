@@ -1,5 +1,3 @@
-// +build windows
-
 /*
 Copyright (C) 2018 KIM KeepInMind GmbH/srl
 
@@ -17,25 +15,38 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package source
+package provider_test
 
 import (
-	"context"
-	"errors"
 	"net"
-	"syscall"
+	"testing"
 
-	"golang.org/x/sys/unix"
-	"upspin.io/log"
+	"github.com/booster-proj/booster/listener/provider"
 )
 
-func (i *Interface) dialContext(ctx context.Context, network, address string) (net.Conn, error) {
-	d := &net.Dialer{
-		// TODO: add windows implementation
-		Control: func(network, address string, c syscall.RawConn) error {
-			return errors.New("dialContext: Control not yet implemented on Windows")
-		},
+func TestFollow(t *testing.T) {
+	conn0, _ := net.Pipe()
+
+	iti0 := &provider.Interface{}
+
+	l := iti0.Len()
+	if l != 0 {
+		t.Fatalf("Unexpected Len: wanted 0, found %d", l)
 	}
 
-	return d.DialContext(ctx, network, address)
+	if err := iti0.Follow(conn0); err != nil {
+		t.Fatal(err)
+	}
+	l = iti0.Len()
+	if l != 1 {
+		t.Fatalf("Unexpected Len: wanted 1, found %d", l)
+	}
+
+	if err := iti0.Close(); err != nil {
+		t.Fatal(err)
+	}
+	l = iti0.Len()
+	if l != 0 {
+		t.Fatalf("Unexpected Len: wanted 0, found %d", l)
+	}
 }

@@ -15,10 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// Package source provides implementations of entities, such as network
-// interfaces, that are able to create network connections, i.e. are
-// "sources" of Internet.
-package source
+package provider
 
 import (
 	"context"

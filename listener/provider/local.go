@@ -22,22 +22,21 @@ import (
 	"net"
 	"time"
 
-	"github.com/booster-proj/booster/source"
 	"upspin.io/log"
 )
 
 type Local struct {
 }
 
-func (l *Local) Provide(ctx context.Context, level Confidence) ([]*source.Interface, error) {
+func (l *Local) Provide(ctx context.Context, level Confidence) ([]*Interface, error) {
 	ift, err := net.Interfaces()
 	if err != nil {
-		return []*source.Interface{}, err
+		return []*Interface{}, err
 	}
 
-	interfaces := make([]*source.Interface, 0, len(ift))
+	interfaces := make([]*Interface, 0, len(ift))
 	for _, ifi := range ift {
-		if s := l.filter(&source.Interface{Interface: ifi}, level); s != nil {
+		if s := l.filter(&Interface{Interface: ifi}, level); s != nil {
 			interfaces = append(interfaces, s)
 		}
 	}
@@ -45,7 +44,7 @@ func (l *Local) Provide(ctx context.Context, level Confidence) ([]*source.Interf
 	return interfaces, nil
 }
 
-func (l *Local) Check(ctx context.Context, ifi *source.Interface, level Confidence) error {
+func (l *Local) Check(ctx context.Context, ifi *Interface, level Confidence) error {
 	checks := []check{hasHardwareAddr, hasIP}
 	if level == High {
 		checks = append(checks, hasNetworkConnRetry)
@@ -54,7 +53,7 @@ func (l *Local) Check(ctx context.Context, ifi *source.Interface, level Confiden
 	return pipeline(ctx, ifi, checks...)
 }
 
-func (l *Local) filter(ifi *source.Interface, level Confidence) *source.Interface {
+func (l *Local) filter(ifi *Interface, level Confidence) *Interface {
 	if err := l.Check(context.Background(), ifi, level); err != nil {
 		log.Debug.Printf("Local provider: pipeline with confidence (%d): %v", level, err)
 		return nil
@@ -62,9 +61,9 @@ func (l *Local) filter(ifi *source.Interface, level Confidence) *source.Interfac
 	return ifi
 }
 
-type check func(context.Context, *source.Interface) error
+type check func(context.Context, *Interface) error
 
-func pipeline(ctx context.Context, ifi *source.Interface, checks ...check) error {
+func pipeline(ctx context.Context, ifi *Interface, checks ...check) error {
 	for _, f := range checks {
 		if err := f(ctx, ifi); err != nil {
 			return err
@@ -73,14 +72,14 @@ func pipeline(ctx context.Context, ifi *source.Interface, checks ...check) error
 	return nil
 }
 
-func hasHardwareAddr(ctx context.Context, ifi *source.Interface) error {
+func hasHardwareAddr(ctx context.Context, ifi *Interface) error {
 	if len(ifi.HardwareAddr) == 0 {
 		return fmt.Errorf("interface %s does not have a valid hardware address", ifi.Name)
 	}
 	return nil
 }
 
-func hasIP(ctx context.Context, ifi *source.Interface) error {
+func hasIP(ctx context.Context, ifi *Interface) error {
 	addrs, err := ifi.Addrs()
 	if err != nil {
 		return fmt.Errorf("unable to get addresses of interface %s: %v", ifi.Name, err)
@@ -112,7 +111,7 @@ func hasIP(ctx context.Context, ifi *source.Interface) error {
 	return nil
 }
 
-func hasNetworkConn(ctx context.Context, ifi *source.Interface) error {
+func hasNetworkConn(ctx context.Context, ifi *Interface) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Millisecond*500)
 	defer cancel()
 
@@ -124,7 +123,7 @@ func hasNetworkConn(ctx context.Context, ifi *source.Interface) error {
 	return nil
 }
 
-func hasNetworkConnRetry(ctx context.Context, ifi *source.Interface) error {
+func hasNetworkConnRetry(ctx context.Context, ifi *Interface) error {
 	for i := 0; i < 3; i++ {
 		if i == 2 {
 			// last item

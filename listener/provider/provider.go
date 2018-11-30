@@ -23,7 +23,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/booster-proj/booster/source"
 	"github.com/booster-proj/core"
 )
 
@@ -67,7 +66,7 @@ func (m *Merged) Provide(ctx context.Context) ([]core.Source, error) {
 }
 
 func (m *Merged) Check(ctx context.Context, src core.Source, level Confidence) error {
-	if ifi, ok := src.(*source.Interface); ok {
+	if ifi, ok := src.(*Interface); ok {
 		return m.local.Check(ctx, ifi, level)
 	}
 	return fmt.Errorf("Merged provider: unable to find suitable checks for source %s", src.ID())
