@@ -102,10 +102,10 @@ func main() {
 	}
 
 	info := remote.StaticInfo{
-		Version: version,
-		Commit: commit,
-		BuildTime: buildTime,
-		ProxyPort: *pPort,
+		Version:    version,
+		Commit:     commit,
+		BuildTime:  buildTime,
+		ProxyPort:  *pPort,
 		ProxyProto: *rawProto,
 	}
 

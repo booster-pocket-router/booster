@@ -33,7 +33,7 @@ func makeHealthCheckHandler(info StaticInfo) func(w http.ResponseWriter, r *http
 			Alive bool `json:"alive"`
 			StaticInfo
 		}{
-			Alive: true,
+			Alive:      true,
 			StaticInfo: info,
 		})
 	}
@@ -46,19 +46,17 @@ func makeListSourcesHandler(do func(func(core.Source))) func(w http.ResponseWrit
 
 		acc := []interface{}{}
 		do(func(s core.Source) {
-			acc = append(acc, struct{
+			acc = append(acc, struct {
 				Name string `json:"name"`
 			}{
 				Name: s.ID(),
 			})
 		})
 
-
-		json.NewEncoder(w).Encode(struct{
+		json.NewEncoder(w).Encode(struct {
 			Sources []interface{} `json:"sources"`
 		}{
 			Sources: acc,
 		})
 	}
 }
-

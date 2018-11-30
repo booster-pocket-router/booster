@@ -130,7 +130,7 @@ func (i *Interface) Len() int {
 }
 
 func (i *Interface) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct{
+	return json.Marshal(struct {
 		Name string `json:"name"`
 	}{
 		Name: i.Name,

@@ -20,23 +20,23 @@ package remote
 import (
 	"net/http"
 
-	"github.com/gorilla/mux"
 	"github.com/booster-proj/booster/core"
+	"github.com/gorilla/mux"
 )
 
 type StaticInfo struct {
-	Version string `json:"version"`
-	Commit string `json:"commit"`
+	Version   string `json:"version"`
+	Commit    string `json:"commit"`
 	BuildTime string `json:"build_time"`
 
-	ProxyPort int `json:"proxy_port"`
+	ProxyPort  int    `json:"proxy_port"`
 	ProxyProto string `json:"proxy_proto"`
 }
 
 type Router struct {
 	r *mux.Router
 
-	Info StaticInfo
+	Info       StaticInfo
 	SourceEnum func(func(core.Source))
 }
 
