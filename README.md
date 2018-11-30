@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 <p align="center">
    <img src="https://raw.githubusercontent.com/booster-proj/booster/master/assets/banner.png" alt="Booster" width="200" />
 </p>
@@ -53,9 +52,3 @@ This section is reserved for the highest download speed that we managed to obtai
 <p align="center">
    <a href="https://www.speedtest.net/result/7777990270"><img src="https://www.speedtest.net/result/7777990270.png"/></a>
 </p>
-=======
-# core
-[![GoDoc](http://www.godoc.org/github.com/booster-proj/core?status.svg)](http://www.godoc.org/github.com/booster-proj/core)
-  
-Core balancing components
->>>>>>> 1a2d46bfea0fa25a1e2d9a97c183dcef5f5f62b3
