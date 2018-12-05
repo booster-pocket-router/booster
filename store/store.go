@@ -14,10 +14,11 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package source
+package store
 
 import (
 	"fmt"
+
 	"github.com/booster-proj/booster/core"
 )
 
@@ -25,22 +26,18 @@ import (
 // input and returns wether it should be accepted or not.
 type Policy func(core.Source) (bool, error)
 
-type RuledStorage struct {
-	Storage
+type SourceStore struct {
+	Balancer core.Balancer
 	policies map[string]Policy
 }
 
-func NewRuledStorage(s Storage) *RuledStorage {
-	return &RuledStorage{Storage: s, policies: make(map[string]Policy)}
-}
-
-func (rs *RuledStorage) AddPolicy(id string, p Policy) error {
+func (rs *SourceStore) AddPolicy(id string, p Policy) error {
 	if rs.policies == nil {
 		rs.policies = make(map[string]Policy)
 	}
 
 	if _, ok := rs.policies[id]; ok {
-		return fmt.Errorf("RuledStorage: policy with identifier %s is already present", id)
+		return fmt.Errorf("SourceStore: policy with identifier %s is already present", id)
 	}
 
 	rs.policies[id] = p
@@ -50,7 +47,7 @@ func (rs *RuledStorage) AddPolicy(id string, p Policy) error {
 	return nil
 }
 
-func (rs *RuledStorage) DelPolicy(id string) {
+func (rs *SourceStore) DelPolicy(id string) {
 	delete(rs.policies, id)
 }
 

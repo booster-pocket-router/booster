@@ -110,8 +110,7 @@ func main() {
 	}
 
 	b := new(core.Balancer)
-	rs := source.NewRuledStorage(b)
-	l := source.NewListener(rs)
+	l := source.NewListener(b)
 	d := booster.New(b)
 
 	router := remote.NewRouter()

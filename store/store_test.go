@@ -14,24 +14,51 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package source_test
+package store_test
 
 import (
 	"testing"
+	"context"
+	"net"
+	"fmt"
 
-	"github.com/booster-proj/booster/source"
+	"github.com/booster-proj/booster/store"
 )
+
+type mock struct {
+	id     string
+	active bool
+}
+
+func (s *mock) ID() string {
+	return s.id
+}
+
+func (s *mock) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	if s.active {
+		return nil, nil
+	}
+	return nil, fmt.Errorf("no internet connection")
+}
+
+func (s *mock) Close() error {
+	return nil
+}
+
+func (s *mock) String() string {
+	return s.ID()
+}
 
 func TestApplyPolicy_Block(t *testing.T) {
 	id := "foo"
 	s := &mock{id: id}
-	block := source.MakeBlockPolicy(id)
+	block := store.MakeBlockPolicy(id)
 
-	if err := source.ApplyPolicy(s, block); err == nil {
+	if err := store.ApplyPolicy(s, block); err == nil {
 		t.Fatalf("Source (%v) was accepted, even though it should've been refuted", s)
 	}
 	s.id = "bar"
-	if err := source.ApplyPolicy(s, block); err != nil {
+	if err := store.ApplyPolicy(s, block); err != nil {
 		t.Fatalf("Source (%v) was unexpectedly blocked: %v", s, err)
 	}
 }
