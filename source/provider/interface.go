@@ -34,9 +34,9 @@ import (
 type Interface struct {
 	net.Interface
 
-	// If ErrHook is not nil, it is called each time that the
+	// If OnDialErr is not nil, it is called each time that the
 	// dialer is not able to create a network connection.
-	ErrHook func(ref, network, address string, err error)
+	OnDialErr DialHook
 
 	conns struct {
 		sync.Mutex
@@ -53,7 +53,7 @@ func (i *Interface) DialContext(ctx context.Context, network, address string) (n
 	// in the {darwin, linux, windows}_dial.go files.
 	conn, err := i.dialContext(ctx, network, address)
 	if err != nil {
-		if f := i.ErrHook; f != nil {
+		if f := i.OnDialErr; f != nil {
 			f(i.ID(), network, address, err)
 		}
 		return nil, err

@@ -85,30 +85,36 @@ func NewListener(s Storage) *Listener {
 	return &Listener{
 		s: s,
 		Provider: &provider.Merged{
-			ErrHook: func(ref, network, address string, err error) {
-				log.Debug.Printf("Listener: ErrHook called from %s (net: %s, addr: %s): %v", ref, network, address, err)
-
-				hookErr := &hookErr{
-					receivedAt: time.Now(),
-					ref:        ref,
-					network:    network,
-					err:        err,
-				}
-
-				s.Do(func(src core.Source) {
-					if src.ID() != ref {
-						return
-					}
-
-					if v, ok := src.(*Source); ok {
-						v.hooked.Lock()
-						v.hooked.Err = hookErr
-						v.hooked.Unlock()
-					}
-				})
-			},
+			OnDialErr: (&hooker{s}).handleDialErr,
 		},
 	}
+}
+
+type hooker struct {
+	s Storage
+}
+
+func (h *hooker) handleDialErr(ref, network, address string, err error) {
+	log.Debug.Printf("Listener: ErrHook called from %s (net: %s, addr: %s): %v", ref, network, address, err)
+
+	hookErr := &hookErr{
+		receivedAt: time.Now(),
+		ref:        ref,
+		network:    network,
+		err:        err,
+	}
+
+	h.s.Do(func(src core.Source) {
+		if src.ID() != ref {
+			return
+		}
+
+		if v, ok := src.(*Source); ok {
+			v.hooked.Lock()
+			v.hooked.Err = hookErr
+			v.hooked.Unlock()
+		}
+	})
 }
 
 // Run is a blocking function which keeps on calling Poll and waiting

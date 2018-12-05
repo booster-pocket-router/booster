@@ -38,10 +38,10 @@ type DialHook func(ref, network, address string, err error)
 // Merged is a provider implementation which acts as a wrapper
 // around many provider implementations.
 type Merged struct {
-	// ErrHook is set to each source that is collected by this
+	// OnDialErr is set to each source that is collected by this
 	// provider. It is used to receive a callback when a source
 	// is no longer able to create network connections.
-	ErrHook DialHook
+	OnDialErr DialHook
 	local   *Local
 }
 
@@ -59,7 +59,7 @@ func (m *Merged) Provide(ctx context.Context) ([]core.Source, error) {
 
 	sources := make([]core.Source, 0, len(interfaces))
 	for _, v := range interfaces {
-		v.ErrHook = m.ErrHook
+		v.OnDialErr = m.OnDialErr
 		sources = append(sources, v)
 	}
 	return sources, nil
