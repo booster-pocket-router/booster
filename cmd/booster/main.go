@@ -30,6 +30,7 @@ import (
 	"github.com/booster-proj/booster/core"
 	"github.com/booster-proj/booster/remote"
 	"github.com/booster-proj/booster/source"
+	"github.com/booster-proj/booster/store"
 	"github.com/booster-proj/proxy"
 	"golang.org/x/sync/errgroup"
 	"upspin.io/log"
@@ -110,12 +111,13 @@ func main() {
 	}
 
 	b := new(core.Balancer)
-	l := source.NewListener(b)
+	rs := store.New(b)
+	l := source.NewListener(rs)
 	d := booster.New(b)
 
 	router := remote.NewRouter()
 	router.Info = info
-	router.SourceEnum = l.Do
+	router.SourceEnum = rs.Do
 	router.SetupRoutes()
 	r := remote.New(router)
 

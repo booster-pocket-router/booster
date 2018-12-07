@@ -44,17 +44,13 @@ func makeListSourcesHandler(do func(func(core.Source))) func(w http.ResponseWrit
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 
-		acc := []interface{}{}
+		acc := []core.Source{}
 		do(func(s core.Source) {
-			acc = append(acc, struct {
-				Name string `json:"name"`
-			}{
-				Name: s.ID(),
-			})
+			acc = append(acc, s)
 		})
 
 		json.NewEncoder(w).Encode(struct {
-			Sources []interface{} `json:"sources"`
+			Sources []core.Source `json:"sources"`
 		}{
 			Sources: acc,
 		})

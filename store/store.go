@@ -22,13 +22,50 @@ import (
 	"github.com/booster-proj/booster/core"
 )
 
+// Store describes an entity that is able to store
+// and delete sources.
+type Store interface {
+	Put(...core.Source)
+	Del(...core.Source)
+
+	Len() int
+	Do(func(core.Source))
+}
+
 // A Policy is a simple function that takes a source as
 // input and returns wether it should be accepted or not.
 type Policy func(core.Source) (bool, error)
 
+// A SourceStore is able to keep sources under a set of
+// policies, or rules. When it is asked to store a value,
+// it performs the policy checks on it, and eventually the
+// request is forwarded to the protected store.
 type SourceStore struct {
-	Balancer core.Balancer
+	protected Store
 	policies map[string]Policy
+}
+
+func New(store Store) *SourceStore {
+	return &SourceStore{
+		protected: store,
+		policies: make(map[string]Policy),
+	}
+}
+
+func (rs *SourceStore) Put(sources ...core.Source) {
+	rs.protected.Put(sources...)
+}
+
+func (rs *SourceStore) Del(sources ...core.Source) {
+	rs.protected.Del(sources...)
+}
+
+func (rs *SourceStore) Len() int {
+	return rs.protected.Len()
+}
+
+func (rs *SourceStore) Do(f func(core.Source)) {
+	rs.protected.Do(f)
 }
 
 func (rs *SourceStore) AddPolicy(id string, p Policy) error {

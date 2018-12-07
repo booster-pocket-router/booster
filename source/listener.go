@@ -22,15 +22,16 @@ import (
 	"context"
 	"sync"
 	"time"
+	"fmt"
 
 	"github.com/booster-proj/booster/core"
 	"github.com/booster-proj/booster/source/provider"
 	"upspin.io/log"
 )
 
-// Storage describes an entity that is able to store
+// Store describes an entity that is able to store
 // and delete sources.
-type Storage interface {
+type Store interface {
 	Put(...core.Source)
 	Del(...core.Source)
 
@@ -46,18 +47,30 @@ type Provider interface {
 	Check(context.Context, core.Source, provider.Confidence) error
 }
 
-// Source is a source managed by the listener
-type Source struct {
-	core.Source
+type Listener struct {
+	// Source provider.
+	Provider
 
-	hooked struct {
-		sync.Mutex
-		Err *hookErr
-	}
+	// The location where the active sources are stored.
+	s Store
+	// Hook errors handler.
+	h *Hooker
 }
 
-func (s *Source) String() string {
-	return s.ID()
+var PollInterval = time.Second * 3
+var PollTimeout = time.Second * 5
+
+// NewListener creates a new Listener with the provided storage, using
+// as Provider the provider.Merged implementation.
+func NewListener(s Store) *Listener {
+	hooker := &Hooker{hooked: make(map[string]*hookErr)}
+	return &Listener{
+		s: s,
+		h: hooker,
+		Provider: &provider.Merged{
+			OnDialErr: hooker.HandleDialErr,
+		},
+	}
 }
 
 type hookErr struct {
@@ -68,33 +81,16 @@ type hookErr struct {
 	err        error
 }
 
-type Listener struct {
-	// Source provider.
-	Provider
-
-	// The location where the active sources are stored.
-	s Storage
+func (err *hookErr) Error() string {
+	return fmt.Sprintf("error %v produced by source %s while contacting %s using %s", err.err, err.ref, err.address, err.network)
 }
 
-var PollInterval = time.Second * 3
-var PollTimeout = time.Second * 5
-
-// NewListener creates a new Listener with the provided storage, using
-// as Provider the provider.Merged implementation.
-func NewListener(s Storage) *Listener {
-	return &Listener{
-		s: s,
-		Provider: &provider.Merged{
-			OnDialErr: (&hooker{s}).handleDialErr,
-		},
-	}
+type Hooker struct {
+	sync.Mutex
+	hooked map[string]*hookErr // list of hook errors mapped by source id
 }
 
-type hooker struct {
-	s Storage
-}
-
-func (h *hooker) handleDialErr(ref, network, address string, err error) {
+func (h *Hooker) HandleDialErr(ref, network, address string, err error) {
 	log.Debug.Printf("Listener: ErrHook called from %s (net: %s, addr: %s): %v", ref, network, address, err)
 
 	hookErr := &hookErr{
@@ -103,18 +99,24 @@ func (h *hooker) handleDialErr(ref, network, address string, err error) {
 		network:    network,
 		err:        err,
 	}
+	h.Add(hookErr)
+}
 
-	h.s.Do(func(src core.Source) {
-		if src.ID() != ref {
-			return
-		}
+func (h *Hooker) Add(err *hookErr) {
+	h.Lock()
+	h.hooked[err.ref] = err
+	h.Unlock()
+}
 
-		if v, ok := src.(*Source); ok {
-			v.hooked.Lock()
-			v.hooked.Err = hookErr
-			v.hooked.Unlock()
-		}
-	})
+func (h *Hooker) HookErr(id string) error {
+	h.Lock()
+	defer h.Unlock()
+
+	if err, ok := h.hooked[id]; ok && err != nil {
+		delete(h.hooked, id) // cleanup, the error must be handled now.
+		return err
+	}
+	return nil
 }
 
 // Run is a blocking function which keeps on calling Poll and waiting
@@ -197,25 +199,22 @@ func (l *Listener) Poll(ctx context.Context) error {
 		}
 		// New source WITH active internet connection found!
 		log.Info.Printf("Listener: adding (%v) to storage.", v)
-		l.s.Put(&Source{Source: v})
+		l.s.Put(v)
 	}
 
 	// Remove what has to be removed without further investigation
 	for _, v := range remove {
 		log.Info.Printf("Listener: removing (%v) from storage.", v)
 		l.s.Del(v)
+		_ = l.h.HookErr(v.ID()) // also consume hook errors.
 	}
 
 	// Eventually remove the sources that contain hook errors.
 	acc := make([]core.Source, 0, l.s.Len())
 	l.s.Do(func(src core.Source) {
-		if s, ok := src.(*Source); ok {
-			s.hooked.Lock()
-			if s.hooked.Err != nil {
-				acc = append(acc, s.Source)
-				s.hooked.Err = nil // cleanup handled error.
-			}
-			s.hooked.Unlock()
+		if err = l.h.HookErr(src.ID()); err != nil {
+			// This source has an hook error.
+			acc = append(acc, src)
 		}
 	})
 	for _, v := range acc {
@@ -228,8 +227,4 @@ func (l *Listener) Poll(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (l *Listener) Do(f func(core.Source)) {
-	l.s.Do(f)
 }
