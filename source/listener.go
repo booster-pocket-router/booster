@@ -20,9 +20,9 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
-	"fmt"
 
 	"github.com/booster-proj/booster/core"
 	"github.com/booster-proj/booster/source/provider"

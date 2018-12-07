@@ -42,7 +42,7 @@ type Merged struct {
 	// provider. It is used to receive a callback when a source
 	// is no longer able to create network connections.
 	OnDialErr DialHook
-	local   *Local
+	local     *Local
 }
 
 // Provide returns the list of sources returned by each provider owned

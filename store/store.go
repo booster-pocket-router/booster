@@ -42,13 +42,13 @@ type Policy func(core.Source) (bool, error)
 // request is forwarded to the protected store.
 type SourceStore struct {
 	protected Store
-	policies map[string]Policy
+	policies  map[string]Policy
 }
 
 func New(store Store) *SourceStore {
 	return &SourceStore{
 		protected: store,
-		policies: make(map[string]Policy),
+		policies:  make(map[string]Policy),
 	}
 }
 

@@ -131,10 +131,10 @@ func (i *Interface) Len() int {
 
 func (i *Interface) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		Name string `json:"name"`
-		OpenConns int `json:"open_conns"`
+		Name      string `json:"name"`
+		OpenConns int    `json:"open_conns"`
 	}{
-		Name: i.Name,
+		Name:      i.Name,
 		OpenConns: i.Len(),
 	})
 }

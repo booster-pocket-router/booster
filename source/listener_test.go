@@ -19,10 +19,10 @@ package source_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"sort"
-	"errors"
 	"testing"
 	"time"
 

@@ -17,10 +17,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package store_test
 
 import (
-	"testing"
 	"context"
-	"net"
 	"fmt"
+	"net"
+	"testing"
 
 	"github.com/booster-proj/booster/store"
 )
