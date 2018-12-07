@@ -104,6 +104,9 @@ func (h *Hooker) HandleDialErr(ref, network, address string, err error) {
 
 func (h *Hooker) Add(err *hookErr) {
 	h.Lock()
+	if h.hooked == nil {
+		h.hooked = make(map[string]*hookErr)
+	}
 	h.hooked[err.ref] = err
 	h.Unlock()
 }

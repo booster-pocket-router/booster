@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"errors"
 	"testing"
 	"time"
 
@@ -52,6 +53,19 @@ func (s *mock) Close() error {
 
 func (s *mock) String() string {
 	return s.ID()
+}
+
+func TestHooker(t *testing.T) {
+	h := &source.Hooker{}
+	ref := "foo"
+	h.HandleDialErr(ref, "net", "addr", errors.New("some error"))
+
+	if err := h.HookErr(ref); err == nil {
+		t.Fatalf("Wanted hook error for id %s, found nil", ref)
+	}
+	if err := h.HookErr(ref); err != nil {
+		t.Fatalf("Wanted nil error for id %s, found %v", ref, err)
+	}
 }
 
 type storage struct {
