@@ -52,7 +52,7 @@ var (
 	rawProto = flag.String("proto", "socks5", "Proxy protocol used. Available protocols: http, socks5.")
 
 	// API configuration
-	apiPort = flag.Int("api-port", 8080, "API server listening port")
+	apiPort = flag.Int("api-port", 1764, "API server listening port")
 
 	// Log configuration
 	verbose     = flag.Bool("verbose", false, "If set, makes the logger print also debug messages")
