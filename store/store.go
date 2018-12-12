@@ -262,3 +262,11 @@ func (ss *SourceStore) Del(sources ...core.Source) {
 	}
 	ss.underPolicy = up
 }
+
+// GetPoliciesSnapshot returns a copy of the current policies
+// active in the store.
+func (ss *SourceStore) GetPoliciesSnapshot() []*Policy {
+	acc := make([]*Policy, 0, len(ss.Policies))
+	copy(acc, ss.Policies)
+	return acc
+}

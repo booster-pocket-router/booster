@@ -27,6 +27,7 @@ import (
 
 type SnapshotProvider interface {
 	GetSourcesSnapshot() []*store.DummySource
+	GetPoliciesSnapshot() []*store.Policy
 }
 
 type Router struct {
@@ -43,7 +44,8 @@ func NewRouter() *Router {
 func (r *Router) SetupRoutes() {
 	router := r.r
 	router.HandleFunc("/_health", makeHealthCheckHandler(r.Config))
-	router.HandleFunc("/snapshot", makeSnapshotHandler(r.Provider))
+	router.HandleFunc("/sources", makeSourcesSnapshotHandler(r.Provider))
+	router.HandleFunc("/policies", makePoliciesSnapshotHandler(r.Provider))
 	router.Use(loggingMiddleware)
 }
 

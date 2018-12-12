@@ -40,15 +40,28 @@ func makeHealthCheckHandler(config booster.Config) func(w http.ResponseWriter, r
 	}
 }
 
-func makeSnapshotHandler(p SnapshotProvider) func(w http.ResponseWriter, r *http.Request) {
+func makeSourcesSnapshotHandler(p SnapshotProvider) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 
 		json.NewEncoder(w).Encode(struct {
-			Sources []*store.DummySource `json:"snapshot"`
+			Sources []*store.DummySource `json:"sources"`
 		}{
 			Sources: p.GetSourcesSnapshot(),
+		})
+	}
+}
+
+func makePoliciesSnapshotHandler(p SnapshotProvider) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+
+		json.NewEncoder(w).Encode(struct {
+			Policies []*store.Policy `json:"policies"`
+		}{
+			Policies: p.GetPoliciesSnapshot(),
 		})
 	}
 }
