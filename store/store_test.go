@@ -22,6 +22,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/booster-proj/booster/core"
 	"github.com/booster-proj/booster/store"
 )
 
@@ -53,16 +54,83 @@ func (s *mock) String() string {
 	return s.Name()
 }
 
-func TestApplyPolicy_Block(t *testing.T) {
-	id := "foo"
-	s := &mock{id: id}
-	block := store.MakeBlockPolicy(id)
+type storage struct {
+	data []core.Source
+}
 
-	if err := store.ApplyPolicy(s, block); err == nil {
-		t.Fatalf("Source (%v) was accepted, even though it should've been refuted", s)
+func (s *storage) Put(ss ...core.Source) {
+	s.data = append(s.data, ss...)
+}
+
+func (s *storage) Del(ss ...core.Source) {
+	filtered := make([]core.Source, 0, len(ss))
+	filter := func(src core.Source) bool {
+		for _, v := range ss {
+			if src.Name() == v.Name() {
+				return false
+			}
+		}
+		return true
 	}
-	s.id = "bar"
-	if err := store.ApplyPolicy(s, block); err != nil {
-		t.Fatalf("Source (%v) was unexpectedly blocked: %v", s, err)
+	for _, v := range s.data {
+		if filter(v) {
+			filtered = append(filtered, v)
+		}
+	}
+
+	s.data = filtered
+}
+
+func (s *storage) Len() int {
+	return len(s.data)
+}
+
+func (s *storage) Do(f func(core.Source)) {
+	for _, v := range s.data {
+		f(v)
+	}
+}
+
+func TestAddDelPolicy(t *testing.T) {
+	// Let's start with a protected storage that contains a
+	// source.
+	src := &mock{id: "foo"}
+	storage := &storage{
+		data: []core.Source{src},
+	}
+
+	// Create the store.
+	s := store.New(storage)
+
+	// Query the store and check that it returns our source
+	// (it should not be blocked).
+	ss := s.GetAccepted()
+	if len(ss) != 1 {
+		t.Fatalf("Unexpected accepted sources: wanted len == 1, found: %+v", ss)
+	}
+
+	// Now add a policy that should block our source, and
+	// see the results.
+	p := &store.Policy{
+		ID: "bar",
+		Func: func(name string) bool {
+			return name != "foo"
+		},
+		Reason: "Some reason",
+		Code:   500,
+	}
+	s.AddPolicy(p)
+
+	// Now check if the source is actually blocked.
+	ss = s.GetAccepted()
+	if len(ss) != 0 {
+		t.Fatalf("Unexpected accepted sources: wanted len == 0, found %+v", ss)
+	}
+
+	// Remove the policies and check the result again.
+	s.DelPolicy(p.ID)
+	ss = s.GetAccepted()
+	if len(ss) != 1 {
+		t.Fatalf("Unexpected accepted sources: wanted len == 1, found: %+v", ss)
 	}
 }

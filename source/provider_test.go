@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/booster-proj/booster/source"
 	"github.com/booster-proj/booster/core"
+	"github.com/booster-proj/booster/source"
 )
 
 func TestProvide_cancel(t *testing.T) {

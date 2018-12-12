@@ -24,4 +24,3 @@ func WithValue(parent core.Source, key interface{}, value interface{}) core.Sour
 	// TODO: implement
 	return parent
 }
-

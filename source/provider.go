@@ -30,7 +30,6 @@ const (
 	High
 )
 
-
 // Provider is a provider implementation which acts as a wrapper
 // around many provider implementations.
 type MergedProvider struct {
@@ -67,4 +66,3 @@ func (p *MergedProvider) Check(ctx context.Context, src core.Source, level Confi
 	}
 	return fmt.Errorf("provider: unable to find suitable checks for source %s", src.Name())
 }
-

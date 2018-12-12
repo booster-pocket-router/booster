@@ -19,7 +19,6 @@ package source
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"sync"
@@ -132,14 +131,4 @@ func (i *Interface) Len() int {
 	}
 
 	return len(i.conns.val)
-}
-
-func (i *Interface) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		Name      string `json:"name"`
-		OpenConns int    `json:"open_conns"`
-	}{
-		Name:      i.Name(),
-		OpenConns: i.Len(),
-	})
 }

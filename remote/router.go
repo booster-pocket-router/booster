@@ -20,20 +20,20 @@ package remote
 import (
 	"net/http"
 
-	"github.com/booster-proj/booster/core"
 	"github.com/booster-proj/booster"
+	"github.com/booster-proj/booster/store"
 	"github.com/gorilla/mux"
 )
 
 type SnapshotProvider interface {
-	GetSnapshot() []core.Source
+	GetSourcesSnapshot() []*store.DummySource
 }
 
 type Router struct {
 	r *mux.Router
 
-	Config       booster.Config
-	Provider     SnapshotProvider
+	Config   booster.Config
+	Provider SnapshotProvider
 }
 
 func NewRouter() *Router {

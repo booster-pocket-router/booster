@@ -21,8 +21,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/booster-proj/booster/core"
 	"github.com/booster-proj/booster"
+	"github.com/booster-proj/booster/store"
 )
 
 func makeHealthCheckHandler(config booster.Config) func(w http.ResponseWriter, r *http.Request) {
@@ -34,7 +34,7 @@ func makeHealthCheckHandler(config booster.Config) func(w http.ResponseWriter, r
 			Alive bool `json:"alive"`
 			booster.Config
 		}{
-			Alive:      true,
+			Alive:  true,
 			Config: config,
 		})
 	}
@@ -46,9 +46,9 @@ func makeSnapshotHandler(p SnapshotProvider) func(w http.ResponseWriter, r *http
 		w.Header().Set("Content-Type", "application/json")
 
 		json.NewEncoder(w).Encode(struct {
-			Sources []core.Source `json:"snapshot"`
+			Sources []*store.DummySource `json:"snapshot"`
 		}{
-			Sources: p.GetSnapshot(),
+			Sources: p.GetSourcesSnapshot(),
 		})
 	}
 }

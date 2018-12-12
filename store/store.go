@@ -17,8 +17,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package store
 
 import (
-	"fmt"
-
 	"github.com/booster-proj/booster/core"
 )
 
@@ -33,9 +31,18 @@ type Store interface {
 }
 
 type Policy struct {
-	Block func(core.Source) bool
-	Blocked core.Source
+	// ID is used to identify later a policy.
+	ID string
+	// Func is the function used to check wether this policy
+	// is applied to item with name == name or not. Returns
+	// true if the input should be blocked/not accepted.
+	Func func(name string) bool
+	// Reason explains why this policy is applied, or who is
+	// the issues of this policy. In other words, it explains
+	// why this policy exists.
 	Reason string
+	// Code is the code of the policy, usefull when the policy
+	// is delivered to another context.
 	Code int
 }
 
@@ -45,13 +52,30 @@ type Policy struct {
 // request is forwarded to the protected store.
 type SourceStore struct {
 	protected Store
-	policies  map[string]Policy
+
+	Policies    []*Policy
+	underPolicy []*DummySource
+}
+
+// A DummySource is a source which stores only the information
+// of it's parent source at copy time, but it is no longer able
+// to produce any internet conneciton. It should be used to show
+// snapshots of the current storage to other componets of the
+// program that should not be able to break or work with the
+// original and active source.
+type DummySource struct {
+	internal core.Source            `json:"-"`
+	Name     string                 `json:"name"`
+	Policy   *Policy                `json:"policy"`
+	Blocked  bool                   `json:"blocked"`
+	Metrics  map[string]interface{} `json:"metrics"`
 }
 
 func New(store Store) *SourceStore {
 	return &SourceStore{
-		protected: store,
-		policies:  make(map[string]Policy),
+		protected:   store,
+		Policies:    []*Policy{},
+		underPolicy: []*DummySource{},
 	}
 }
 
@@ -67,60 +91,120 @@ func (ss *SourceStore) GetAccepted() []core.Source {
 	return acc
 }
 
-// GetSnapshot returns a copy of the current sources that the store
+// GetSourcesSnapshot returns a copy of the current sources that the store
 // is handling. The sources returned are not capable of providing any
 // internet connection, but are filled with the policies applied on
 // them and the metrics collected.
-func (ss *SourceStore) GetSnapshot() []core.Source {
-	// TODO: implement
-	acc := make([]core.Source, 0, ss.protected.Len())
+func (ss *SourceStore) GetSourcesSnapshot() []*DummySource {
+	acc := make([]*DummySource, 0, ss.protected.Len()+len(ss.underPolicy))
+
 	ss.protected.Do(func(src core.Source) {
-		acc = append(acc, src)
+		ds := &DummySource{
+			Name:    src.Name(),
+			Blocked: false,
+		}
+		if metrics, ok := src.Value("metrics").(map[string]interface{}); ok {
+			ds.Metrics = metrics
+		}
+		acc = append(acc, ds)
 	})
+
+	for _, v := range ss.underPolicy {
+		ds := &DummySource{
+			Name:    v.Name,
+			Blocked: v.Blocked,
+			Policy:  v.Policy,
+		}
+		if metrics, ok := v.internal.Value("metrics").(map[string]interface{}); ok {
+			ds.Metrics = metrics
+		}
+		acc = append(acc, ds)
+	}
+
 	return acc
 }
 
-func (rs *SourceStore) AddPolicy(id string, p Policy) error {
-	if rs.policies == nil {
-		rs.policies = make(map[string]Policy)
+// Add policy stores the policy and applies it also to the sources
+// stored in the protected storage, removing them from it if
+// required.
+func (ss *SourceStore) AddPolicy(p *Policy) {
+	if ss.Policies == nil {
+		ss.Policies = make([]*Policy, 0, 1)
 	}
+	ss.Policies = append(ss.Policies, p)
 
-	if _, ok := rs.policies[id]; ok {
-		return fmt.Errorf("SourceStore: policy with identifier %s is already present", id)
+	// Now apply the new policy to the items that
+	// are already in the storage.
+	acc := make([]core.Source, 0, ss.protected.Len())
+	ss.protected.Do(func(src core.Source) {
+		if !p.Func(src.Name()) {
+			// the source was not accepted by
+			// the policy.
+			acc = append(acc, src)
+		}
+	})
+
+	// Remove the unaccepted sources from the protected
+	// storage.
+	ss.protected.Del(acc...)
+
+	// Now keep a trace of the sources that are under
+	// policy.
+	if ss.underPolicy == nil {
+		ss.underPolicy = make([]*DummySource, 0, len(acc))
 	}
-
-	rs.policies[id] = p
-
-	// TODO: We need to apply the policy also to the sources
-	// that are already in the storage.
-	return nil
+	for _, v := range acc {
+		ss.underPolicy = append(ss.underPolicy, &DummySource{
+			internal: v,
+			Blocked:  true,
+			Policy:   p,
+		})
+	}
 }
 
-func (rs *SourceStore) DelPolicy(id string) {
-	delete(rs.policies, id)
-}
-
-func ApplyPolicy(s core.Source, policies ...Policy) error {
-	for _, p := range policies {
-		if accepted := p.Block(s); !accepted {
-			return fmt.Errorf("Policy check: %v", p.Reason)
+// DelPolicy removes the policy with identifier id from the storage.
+// It then loops through each source under policy, and frees it if
+// the policy is the removed one, putting the source again in the
+// protected storage.
+// Note that only the first instance of policy with identifier id is
+// removed.
+func (ss *SourceStore) DelPolicy(id string) {
+	// Remove the policy from the storage.
+	var j int
+	var found bool
+	for i, v := range ss.Policies {
+		if v.ID == id {
+			found = true
+			j = i
+			break
 		}
 	}
+	if !found {
+		return
+	}
+	// avoid any possible memory leak in the underlying array.
+	ss.Policies[j] = nil
+	ss.Policies = append(ss.Policies[:j], ss.Policies[j+1:]...)
 
-	// source was accepted by every policy contraint
-	return nil
+	// Now restore the sources under policy.
+	if ss.underPolicy == nil {
+		return
+	}
+
+	acc := make([]*DummySource, 0, len(ss.underPolicy))
+	for _, v := range ss.underPolicy {
+		if v.Policy.ID == id {
+			// Restore this source!
+			ss.Put(v.internal)
+		} else {
+			acc = append(acc, v)
+		}
+	}
+	ss.underPolicy = acc
 }
 
-func MakeBlockPolicy(id string) Policy {
-	return Policy{
-		Block: func(s core.Source) bool {
-			if s.Name() == id {
-				return false
-			}
-			return true
-		},
-		Reason: "manually blocked source",
-	}
+func (rs *SourceStore) put(sources ...core.Source) {
+	rs.protected.Put(sources...)
 }
 
 func (rs *SourceStore) Put(sources ...core.Source) {
@@ -138,4 +222,3 @@ func (rs *SourceStore) Len() int {
 func (rs *SourceStore) Do(f func(core.Source)) {
 	rs.protected.Do(f)
 }
-
