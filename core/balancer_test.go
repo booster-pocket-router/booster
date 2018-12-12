@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/booster-proj/core"
+	"github.com/booster-proj/booster/core"
 )
 
 type mock struct {
@@ -35,7 +35,7 @@ func newMock(id string) *mock {
 	return &mock{id: id}
 }
 
-func (s *mock) ID() string {
+func (s *mock) Name() string {
 	return s.id
 }
 
@@ -47,6 +47,10 @@ func (s *mock) Close() error {
 	if f := s.closeHook; f != nil {
 		go f()
 	}
+	return nil
+}
+
+func (s *mock) Value(key interface{}) interface{} {
 	return nil
 }
 
@@ -71,8 +75,8 @@ func TestPut(t *testing.T) {
 	}
 
 	b.Do(func(s core.Source) {
-		if s.ID() != "s0" {
-			t.Fatalf("Unexpected source Identifier: wanted s0, found %s", s.ID())
+		if s.Name() != "s0" {
+			t.Fatalf("Unexpected source Identifier: wanted s0, found %s", s.Name())
 		}
 	})
 }
@@ -116,8 +120,8 @@ func TestGet_roundRobin(t *testing.T) {
 			t.Fatalf("Unexpected error while getting source: %v. %v", i, err)
 		}
 
-		if s.ID() != v.out {
-			t.Fatalf("Unexpected source ID: iteration(%v): wanted %v, found %v", i, v.out, s.ID())
+		if s.Name() != v.out {
+			t.Fatalf("Unexpected source Name: iteration(%v): wanted %v, found %v", i, v.out, s.Name())
 		}
 	}
 }
@@ -131,16 +135,16 @@ func TestGetBlacklist_roundRobin(t *testing.T) {
 	b.Put(s0, s1)
 
 	s, _ := b.Get(context.TODO())
-	if s.ID() != "s0" {
-		t.Fatalf("Unexpected source ID: wanted %v, found %v", s0.ID(), s1.ID())
+	if s.Name() != "s0" {
+		t.Fatalf("Unexpected source Name: wanted %v, found %v", s0.Name(), s1.Name())
 	}
 
 	s2, err := b.Get(context.TODO(), s1)
 	if err != nil {
 		t.Fatalf("Unexpected error while getting source: %v", err)
 	}
-	if s2.ID() != "s0" {
-		t.Fatalf("Unexpected source ID: wanted %v, found %v, blacklisted source %v", s0.ID(), s2.ID(), s1.ID())
+	if s2.Name() != "s0" {
+		t.Fatalf("Unexpected source Name: wanted %v, found %v, blacklisted source %v", s0.Name(), s2.Name(), s1.Name())
 	}
 }
 
@@ -169,8 +173,8 @@ func TestDel(t *testing.T) {
 	}
 
 	b.Do(func(s core.Source) {
-		if s.ID() != "s1" {
-			t.Fatalf("Unexpected source ID: wanted s1, found %v", s.ID())
+		if s.Name() != "s1" {
+			t.Fatalf("Unexpected source Name: wanted s1, found %v", s.Name())
 		}
 	})
 

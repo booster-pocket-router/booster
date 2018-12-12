@@ -38,11 +38,14 @@ type Dialer interface {
 type Source interface {
 	Dialer
 
-	// ID uniquely identifies a source.
-	ID() string
+	// Name uniquely identifies a source.
+	Name() string
 
 	// Tells the receiver to cleanup and close all connections.
 	Close() error
+
+	// Value returns the value associated with key or nil if none.
+	Value(interface{}) interface{}
 }
 
 // Strategy chooses a source from a ring of sources.
@@ -82,7 +85,7 @@ func (b *Balancer) Get(ctx context.Context, blacklist ...Source) (Source, error)
 
 	bl := make(map[string]interface{})
 	for _, v := range blacklist {
-		bl[v.ID()] = nil
+		bl[v.Name()] = nil
 	}
 
 	var s Source
@@ -95,7 +98,7 @@ func (b *Balancer) Get(ctx context.Context, blacklist ...Source) (Source, error)
 		}
 
 		// Check if the source is contained in the blacklist.
-		if _, ok := bl[s.ID()]; ok {
+		if _, ok := bl[s.Name()]; ok {
 			// Skip this source
 			continue
 		}
@@ -146,7 +149,7 @@ func (b *Balancer) Del(ss ...Source) {
 	// Create a map of sources that have to be deleted (lookup O(1))
 	m := make(map[string]Source)
 	for _, v := range ss {
-		m[v.ID()] = v
+		m[v.Name()] = v
 	}
 
 	b.mux.Lock()
@@ -156,7 +159,7 @@ func (b *Balancer) Del(ss ...Source) {
 	b.r.Do(func(s Source) {
 		// Check if the identifier of this stored source is contained in the map
 		// of sources that have to be removed.
-		if _, ok := m[s.ID()]; !ok {
+		if _, ok := m[s.Name()]; !ok {
 			// If this source is not contained in the map, add it to the
 			// list of accepted sources.
 			l = append(l, s)
