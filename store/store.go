@@ -32,19 +32,11 @@ type Store interface {
 	Do(func(core.Source))
 }
 
-type Source struct {
-}
-
-type PolicyCode int
-
-const (
-	CodeManuallyBlocked PolicyCode = 101
-)
-
 type Policy struct {
 	Block func(core.Source) bool
+	Blocked core.Source
 	Reason string
-	Code PolicyCode
+	Code int
 }
 
 // A SourceStore is able to keep sources under a set of
@@ -63,20 +55,29 @@ func New(store Store) *SourceStore {
 	}
 }
 
-func (rs *SourceStore) Put(sources ...core.Source) {
-	rs.protected.Put(sources...)
+// GetAccepted returns the list of sources that are actually
+// being used by the protected storage. The two lists (the
+// complete and the protected one) could differ due to the
+// activation of a blocking policy for example.
+func (ss *SourceStore) GetAccepted() []core.Source {
+	acc := make([]core.Source, 0, ss.protected.Len())
+	ss.protected.Do(func(src core.Source) {
+		acc = append(acc, src)
+	})
+	return acc
 }
 
-func (rs *SourceStore) Del(sources ...core.Source) {
-	rs.protected.Del(sources...)
-}
-
-func (rs *SourceStore) Len() int {
-	return rs.protected.Len()
-}
-
-func (rs *SourceStore) Do(f func(core.Source)) {
-	rs.protected.Do(f)
+// GetSnapshot returns a copy of the current sources that the store
+// is handling. The sources returned are not capable of providing any
+// internet connection, but are filled with the policies applied on
+// them and the metrics collected.
+func (ss *SourceStore) GetSnapshot() []core.Source {
+	// TODO: implement
+	acc := make([]core.Source, 0, ss.protected.Len())
+	ss.protected.Do(func(src core.Source) {
+		acc = append(acc, src)
+	})
+	return acc
 }
 
 func (rs *SourceStore) AddPolicy(id string, p Policy) error {
@@ -121,3 +122,20 @@ func MakeBlockPolicy(id string) Policy {
 		Reason: "manually blocked source",
 	}
 }
+
+func (rs *SourceStore) Put(sources ...core.Source) {
+	rs.protected.Put(sources...)
+}
+
+func (rs *SourceStore) Del(sources ...core.Source) {
+	rs.protected.Del(sources...)
+}
+
+func (rs *SourceStore) Len() int {
+	return rs.protected.Len()
+}
+
+func (rs *SourceStore) Do(f func(core.Source)) {
+	rs.protected.Do(f)
+}
+

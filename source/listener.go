@@ -28,14 +28,12 @@ import (
 	"upspin.io/log"
 )
 
-// Store describes an entity that is able to store
-// and delete sources.
+// Store describes an entity that is able to store,
+// delete and list sources.
 type Store interface {
 	Put(...core.Source)
 	Del(...core.Source)
-
-	Len() int
-	Do(func(core.Source))
+	GetAccepted() []core.Source
 }
 
 // Provider describes a service that is capable of providing sources
@@ -184,10 +182,7 @@ func (l *Listener) Poll(ctx context.Context) error {
 		return err
 	}
 
-	old := make([]core.Source, 0, l.s.Len())
-	l.s.Do(func(src core.Source) {
-		old = append(old, src)
-	})
+	old := l.s.GetAccepted()
 
 	// Find difference from old to cur.
 	add, remove := Diff(old, cur)
@@ -212,13 +207,14 @@ func (l *Listener) Poll(ctx context.Context) error {
 	}
 
 	// Eventually remove the sources that contain hook errors.
-	acc := make([]core.Source, 0, l.s.Len())
-	l.s.Do(func(src core.Source) {
+	old = l.s.GetAccepted() // as the list has been updated before the last call.
+	acc := make([]core.Source, 0, len(old))
+	for _, src := range old {
 		if err = l.h.HookErr(src.Name()); err != nil {
 			// This source has an hook error.
 			acc = append(acc, src)
 		}
-	})
+	}
 	for _, v := range acc {
 		// We collected a hook error. This does not mean that the source does
 		// not provide an internet connection.

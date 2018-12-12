@@ -117,7 +117,7 @@ func main() {
 
 	router := remote.NewRouter()
 	router.Config = config
-	router.SourceEnum = rs.Do
+	router.Provider = rs
 	router.SetupRoutes()
 	r := remote.New(router)
 

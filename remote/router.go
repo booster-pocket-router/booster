@@ -25,11 +25,15 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type SnapshotProvider interface {
+	GetSnapshot() []core.Source
+}
+
 type Router struct {
 	r *mux.Router
 
 	Config       booster.Config
-	SourceEnum func(func(core.Source))
+	Provider     SnapshotProvider
 }
 
 func NewRouter() *Router {
@@ -39,7 +43,7 @@ func NewRouter() *Router {
 func (r *Router) SetupRoutes() {
 	router := r.r
 	router.HandleFunc("/_health", makeHealthCheckHandler(r.Config))
-	router.HandleFunc("/sources", makeListSourcesHandler(r.SourceEnum))
+	router.HandleFunc("/snapshot", makeSnapshotHandler(r.Provider))
 	router.Use(loggingMiddleware)
 }
 

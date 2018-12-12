@@ -62,11 +62,10 @@ func (i *Interface) DialContext(ctx context.Context, network, address string) (n
 	}
 
 	// Follow the new connection if possible
-	go func() {
-		if err := i.Follow(conn); err != nil {
-			log.Error.Println(err)
-		}
-	}()
+	conn, err = i.Follow(conn)
+	if err != nil {
+		log.Error.Println(err)
+	}
 
 	return conn, nil
 }
@@ -74,7 +73,7 @@ func (i *Interface) DialContext(ctx context.Context, network, address string) (n
 // Follow adds conn to the list of connections that the source is handling.
 // The connection is left intact even in case of error, in which case the
 // connection is simply ignored by the interface.
-func (i *Interface) Follow(c net.Conn) error {
+func (i *Interface) Follow(c net.Conn) (net.Conn, error) {
 	wc := newConn(c, i.Name()) // wrapped connection
 
 	i.conns.Lock()
@@ -88,7 +87,7 @@ func (i *Interface) Follow(c net.Conn) error {
 		// Another connection with the same identifier as this one is already in
 		// process. The connection identifiers are supposed to be unique, so this
 		// means that we'll not be able to follow this connection.
-		return fmt.Errorf("DialContext: discarding connection (id: %s) because source (%s) has a connection in process with the same identifier", wc.uuid(), i.Name())
+		return c, fmt.Errorf("DialContext: discarding connection (id: %s) because source (%s) has a connection in process with the same identifier", wc.uuid(), i.Name())
 	}
 
 	wc.onClose = func(id string) {
@@ -99,7 +98,7 @@ func (i *Interface) Follow(c net.Conn) error {
 	}
 	i.conns.val[wc.uuid()] = wc
 
-	return nil
+	return wc, nil
 }
 
 func (i *Interface) Close() error {

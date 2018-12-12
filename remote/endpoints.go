@@ -40,20 +40,15 @@ func makeHealthCheckHandler(config booster.Config) func(w http.ResponseWriter, r
 	}
 }
 
-func makeListSourcesHandler(do func(func(core.Source))) func(w http.ResponseWriter, r *http.Request) {
+func makeSnapshotHandler(p SnapshotProvider) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 
-		acc := []core.Source{}
-		do(func(s core.Source) {
-			acc = append(acc, s)
-		})
-
 		json.NewEncoder(w).Encode(struct {
-			Sources []core.Source `json:"sources"`
+			Sources []core.Source `json:"snapshot"`
 		}{
-			Sources: acc,
+			Sources: p.GetSnapshot(),
 		})
 	}
 }

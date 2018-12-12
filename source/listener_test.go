@@ -106,10 +106,8 @@ func (s *storage) Del(ss ...core.Source) {
 	}
 }
 
-func (s *storage) Do(f func(core.Source)) {
-	for _, v := range s.data {
-		f(v)
-	}
+func (s *storage) GetAccepted() []core.Source {
+	return s.data
 }
 
 func (s *storage) Len() int {
