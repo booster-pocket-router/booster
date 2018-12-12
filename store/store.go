@@ -32,18 +32,18 @@ type Store interface {
 
 type Policy struct {
 	// ID is used to identify later a policy.
-	ID string
+	ID string `json:"id"`
 	// Func is the function used to check wether this policy
 	// is applied to item with name == name or not. Returns
 	// true if the input should be blocked/not accepted.
-	Func func(name string) bool
+	Func func(name string) bool `json:"-"`
 	// Reason explains why this policy is applied, or who is
 	// the issues of this policy. In other words, it explains
 	// why this policy exists.
-	Reason string
+	Reason string `json:"reason"`
 	// Code is the code of the policy, usefull when the policy
 	// is delivered to another context.
-	Code int
+	Code int `json:"code"`
 }
 
 // A SourceStore is able to keep sources under a set of
@@ -195,7 +195,7 @@ func (ss *SourceStore) DelPolicy(id string) {
 	for _, v := range ss.underPolicy {
 		if v.Policy.ID == id {
 			// Restore this source!
-			ss.Put(v.internal)
+			ss.protected.Put(v.internal)
 		} else {
 			acc = append(acc, v)
 		}
@@ -203,22 +203,62 @@ func (ss *SourceStore) DelPolicy(id string) {
 	ss.underPolicy = acc
 }
 
-func (rs *SourceStore) put(sources ...core.Source) {
-	rs.protected.Put(sources...)
+// Put adds sources to the protected storage, if allowed
+// by the policies stored. Otherwise the source is added to
+// a  temporary storage of sources under policy, and
+// eventually put into the protected storage if the blocking
+// policy is removed.
+func (ss *SourceStore) Put(sources ...core.Source) {
+	f := func(src core.Source) (*Policy, bool) {
+		for _, v := range ss.Policies {
+			if !v.Func(src.Name()) {
+				return v, false
+			}
+		}
+		return nil, true
+	}
+
+	acc := make([]core.Source, 0, len(sources))
+	up := make([]*DummySource, 0, len(sources))
+	for _, v := range sources {
+		if p, ok := f(v); ok {
+			acc = append(acc, v)
+		} else {
+			up = append(up, &DummySource{
+				internal: v,
+				Name:     v.Name(),
+				Policy:   p,
+				Blocked:  true,
+			})
+		}
+	}
+
+	ss.protected.Put(acc...)
+	if ss.underPolicy == nil {
+		ss.underPolicy = make([]*DummySource, 0, len(up))
+	}
+	ss.underPolicy = append(ss.underPolicy, up...)
 }
 
-func (rs *SourceStore) Put(sources ...core.Source) {
-	rs.protected.Put(sources...)
-}
+// Del removes the policies from the protected storage and
+// from the list of sources under policy.
+func (ss *SourceStore) Del(sources ...core.Source) {
+	ss.protected.Del(sources...)
 
-func (rs *SourceStore) Del(sources ...core.Source) {
-	rs.protected.Del(sources...)
-}
+	f := func(src *DummySource) bool {
+		for _, v := range sources {
+			if v.Name() == src.Name {
+				return false
+			}
+		}
+		return true
+	}
 
-func (rs *SourceStore) Len() int {
-	return rs.protected.Len()
-}
-
-func (rs *SourceStore) Do(f func(core.Source)) {
-	rs.protected.Do(f)
+	up := make([]*DummySource, 0, len(ss.underPolicy))
+	for _, v := range ss.underPolicy {
+		if f(v) {
+			up = append(up, v)
+		}
+	}
+	ss.underPolicy = up
 }
