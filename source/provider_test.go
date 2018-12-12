@@ -14,22 +14,22 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package provider_test
+package source_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/booster-proj/booster/source/provider"
-	"github.com/booster-proj/core"
+	"github.com/booster-proj/booster/source"
+	"github.com/booster-proj/booster/core"
 )
 
 func TestProvide_cancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	p := &provider.Merged{}
+	p := &source.MergedProvider{}
 
 	c := make(chan error)
 	go func() {
@@ -49,7 +49,7 @@ func TestProvide_cancel(t *testing.T) {
 }
 
 func TestCheck_cancel(t *testing.T) {
-	p := &provider.Merged{}
+	p := &source.MergedProvider{}
 	srcs, _ := p.Provide(context.Background())
 	c := make(chan error, len(srcs))
 
@@ -58,7 +58,7 @@ func TestCheck_cancel(t *testing.T) {
 
 	for _, v := range srcs {
 		go func(src core.Source) {
-			c <- p.Check(ctx, src, provider.High)
+			c <- p.Check(ctx, src, source.High)
 		}(v)
 	}
 

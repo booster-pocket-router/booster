@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/booster-proj/booster/core"
-	"github.com/booster-proj/booster/source/provider"
 	"upspin.io/log"
 )
 
@@ -44,7 +43,7 @@ type Store interface {
 // level of confidence.
 type Provider interface {
 	Provide(context.Context) ([]core.Source, error)
-	Check(context.Context, core.Source, provider.Confidence) error
+	Check(context.Context, core.Source, Confidence) error
 }
 
 type Listener struct {
@@ -67,7 +66,7 @@ func NewListener(s Store) *Listener {
 	return &Listener{
 		s: s,
 		h: hooker,
-		Provider: &provider.Merged{
+		Provider: &MergedProvider{
 			OnDialErr: hooker.HandleDialErr,
 		},
 	}
@@ -87,7 +86,7 @@ func (err *hookErr) Error() string {
 
 type Hooker struct {
 	sync.Mutex
-	hooked map[string]*hookErr // list of hook errors mapped by source id
+	hooked map[string]*hookErr // list of hook errors mapped by source Name
 }
 
 func (h *Hooker) HandleDialErr(ref, network, address string, err error) {
@@ -152,22 +151,22 @@ func Diff(old, cur []core.Source) (add []core.Source, remove []core.Source) {
 	oldm := make(map[string]core.Source, len(old))
 	curm := make(map[string]core.Source, len(cur))
 	for _, v := range old {
-		oldm[v.ID()] = v
+		oldm[v.Name()] = v
 	}
 	for _, v := range cur {
-		curm[v.ID()] = v
+		curm[v.Name()] = v
 	}
 
 	for _, v := range old {
 		// find sources to remove
-		if _, ok := curm[v.ID()]; !ok {
+		if _, ok := curm[v.Name()]; !ok {
 			remove = append(remove, v)
 		}
 	}
 
 	for _, v := range cur {
 		// find sources to add
-		if _, ok := oldm[v.ID()]; !ok {
+		if _, ok := oldm[v.Name()]; !ok {
 			add = append(add, v)
 		}
 	}
@@ -196,7 +195,7 @@ func (l *Listener) Poll(ctx context.Context) error {
 	// Inspect the new ones, add them if they provide an internet connection.
 	for _, v := range add {
 		log.Debug.Printf("Poll: add %v?", v)
-		if err := l.Check(ctx, v, provider.High); err != nil {
+		if err := l.Check(ctx, v, High); err != nil {
 			log.Debug.Printf("Poll: unable to add source: %v", err)
 			continue
 		}
@@ -209,13 +208,13 @@ func (l *Listener) Poll(ctx context.Context) error {
 	for _, v := range remove {
 		log.Info.Printf("Listener: removing (%v) from storage.", v)
 		l.s.Del(v)
-		_ = l.h.HookErr(v.ID()) // also consume hook errors.
+		_ = l.h.HookErr(v.Name()) // also consume hook errors.
 	}
 
 	// Eventually remove the sources that contain hook errors.
 	acc := make([]core.Source, 0, l.s.Len())
 	l.s.Do(func(src core.Source) {
-		if err = l.h.HookErr(src.ID()); err != nil {
+		if err = l.h.HookErr(src.Name()); err != nil {
 			// This source has an hook error.
 			acc = append(acc, src)
 		}
@@ -223,7 +222,7 @@ func (l *Listener) Poll(ctx context.Context) error {
 	for _, v := range acc {
 		// We collected a hook error. This does not mean that the source does
 		// not provide an internet connection.
-		if err := l.Check(ctx, v, provider.High); err != nil {
+		if err := l.Check(ctx, v, High); err != nil {
 			log.Info.Printf("Listener: removing (%v) from storage after hook error.", v)
 			l.s.Del(v)
 		}

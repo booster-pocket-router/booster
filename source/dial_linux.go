@@ -1,4 +1,4 @@
-// +build windows
+// +build linux
 
 /*
 Copyright (C) 2018 KIM KeepInMind GmbH/srl
@@ -17,11 +17,10 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package provider
+package source
 
 import (
 	"context"
-	"errors"
 	"net"
 	"syscall"
 
@@ -31,9 +30,12 @@ import (
 
 func (i *Interface) dialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	d := &net.Dialer{
-		// TODO: add windows implementation
 		Control: func(network, address string, c syscall.RawConn) error {
-			return errors.New("dialContext: Control not yet implemented on Windows")
+			return c.Control(func(fd uintptr) {
+				if err := unix.BindToDevice(int(fd), i.Name); err != nil {
+					log.Debug.Printf("dialContext_linux error: unable to bind to interface %v: %v", i.Name, err)
+				}
+			})
 		},
 	}
 

@@ -30,7 +30,7 @@ type mock struct {
 	active bool
 }
 
-func (s *mock) ID() string {
+func (s *mock) Name() string {
 	return s.id
 }
 
@@ -45,8 +45,12 @@ func (s *mock) Close() error {
 	return nil
 }
 
+func (s *mock) Value(key interface{}) interface{} {
+	return nil
+}
+
 func (s *mock) String() string {
-	return s.ID()
+	return s.Name()
 }
 
 func TestApplyPolicy_Block(t *testing.T) {

@@ -102,7 +102,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	info := remote.StaticInfo{
+	config := booster.Config{
 		Version:    version,
 		Commit:     commit,
 		BuildTime:  buildTime,
@@ -116,7 +116,7 @@ func main() {
 	d := booster.New(b)
 
 	router := remote.NewRouter()
-	router.Info = info
+	router.Config = config
 	router.SourceEnum = rs.Do
 	router.SetupRoutes()
 	r := remote.New(router)

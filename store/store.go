@@ -22,8 +22,8 @@ import (
 	"github.com/booster-proj/booster/core"
 )
 
-// Store describes an entity that is able to store
-// and delete sources.
+// Store describes an entity that is able to store,
+// delete and enumerate sources.
 type Store interface {
 	Put(...core.Source)
 	Del(...core.Source)
@@ -32,9 +32,20 @@ type Store interface {
 	Do(func(core.Source))
 }
 
-// A Policy is a simple function that takes a source as
-// input and returns wether it should be accepted or not.
-type Policy func(core.Source) (bool, error)
+type Source struct {
+}
+
+type PolicyCode int
+
+const (
+	CodeManuallyBlocked PolicyCode = 101
+)
+
+type Policy struct {
+	Block func(core.Source) bool
+	Reason string
+	Code PolicyCode
+}
 
 // A SourceStore is able to keep sources under a set of
 // policies, or rules. When it is asked to store a value,
@@ -90,8 +101,8 @@ func (rs *SourceStore) DelPolicy(id string) {
 
 func ApplyPolicy(s core.Source, policies ...Policy) error {
 	for _, p := range policies {
-		if accepted, err := p(s); !accepted {
-			return fmt.Errorf("Policy check: %v", err)
+		if accepted := p.Block(s); !accepted {
+			return fmt.Errorf("Policy check: %v", p.Reason)
 		}
 	}
 
@@ -100,10 +111,13 @@ func ApplyPolicy(s core.Source, policies ...Policy) error {
 }
 
 func MakeBlockPolicy(id string) Policy {
-	return func(s core.Source) (bool, error) {
-		if s.ID() == id {
-			return false, fmt.Errorf("source %s is blocked", s.ID())
-		}
-		return true, nil
+	return Policy{
+		Block: func(s core.Source) bool {
+			if s.Name() == id {
+				return false
+			}
+			return true
+		},
+		Reason: "manually blocked source",
 	}
 }

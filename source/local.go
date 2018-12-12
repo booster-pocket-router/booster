@@ -14,7 +14,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package provider
+package source
 
 import (
 	"context"
@@ -36,7 +36,7 @@ func (l *Local) Provide(ctx context.Context, level Confidence) ([]*Interface, er
 
 	interfaces := make([]*Interface, 0, len(ift))
 	for _, ifi := range ift {
-		if s := l.filter(&Interface{Interface: ifi}, level); s != nil {
+		if s := l.filter(&Interface{ifi: ifi}, level); s != nil {
 			interfaces = append(interfaces, s)
 		}
 	}
@@ -73,19 +73,19 @@ func pipeline(ctx context.Context, ifi *Interface, checks ...check) error {
 }
 
 func hasHardwareAddr(ctx context.Context, ifi *Interface) error {
-	if len(ifi.HardwareAddr) == 0 {
-		return fmt.Errorf("interface %s does not have a valid hardware address", ifi.Name)
+	if len(ifi.ifi.HardwareAddr) == 0 {
+		return fmt.Errorf("interface %s does not have a valid hardware address", ifi.Name())
 	}
 	return nil
 }
 
 func hasIP(ctx context.Context, ifi *Interface) error {
-	addrs, err := ifi.Addrs()
+	addrs, err := ifi.ifi.Addrs()
 	if err != nil {
-		return fmt.Errorf("unable to get addresses of interface %s: %v", ifi.Name, err)
+		return fmt.Errorf("unable to get addresses of interface %s: %v", ifi.Name(), err)
 	}
 	if len(addrs) == 0 {
-		return fmt.Errorf("interface %s does not have any valid multicast/unicast address", ifi.Name)
+		return fmt.Errorf("interface %s does not have any valid multicast/unicast address", ifi.Name())
 	}
 
 	var ok bool
@@ -105,7 +105,7 @@ func hasIP(ctx context.Context, ifi *Interface) error {
 		}
 	}
 	if !ok {
-		return fmt.Errorf("neither a valid IPv4 nor IPv6 was found in interface %s", ifi.Name)
+		return fmt.Errorf("neither a valid IPv4 nor IPv6 was found in interface %s", ifi.Name())
 	}
 
 	return nil
@@ -117,7 +117,7 @@ func hasNetworkConn(ctx context.Context, ifi *Interface) error {
 
 	conn, err := ifi.DialContext(ctx, "tcp", "google.com:80")
 	if err != nil {
-		return fmt.Errorf("unable to dial connection using interface %s: %v", ifi.Name, err)
+		return fmt.Errorf("unable to dial connection using interface %s: %v", ifi.Name(), err)
 	}
 	conn.Close()
 	return nil

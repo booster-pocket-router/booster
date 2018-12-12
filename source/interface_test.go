@@ -15,19 +15,19 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package provider_test
+package source_test
 
 import (
 	"net"
 	"testing"
 
-	"github.com/booster-proj/booster/source/provider"
+	"github.com/booster-proj/booster/source"
 )
 
 func TestFollow(t *testing.T) {
 	conn0, _ := net.Pipe()
 
-	iti0 := &provider.Interface{}
+	iti0 := &source.Interface{}
 
 	l := iti0.Len()
 	if l != 0 {

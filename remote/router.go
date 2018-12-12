@@ -21,22 +21,14 @@ import (
 	"net/http"
 
 	"github.com/booster-proj/booster/core"
+	"github.com/booster-proj/booster"
 	"github.com/gorilla/mux"
 )
-
-type StaticInfo struct {
-	Version   string `json:"version"`
-	Commit    string `json:"commit"`
-	BuildTime string `json:"build_time"`
-
-	ProxyPort  int    `json:"proxy_port"`
-	ProxyProto string `json:"proxy_proto"`
-}
 
 type Router struct {
 	r *mux.Router
 
-	Info       StaticInfo
+	Config       booster.Config
 	SourceEnum func(func(core.Source))
 }
 
@@ -46,7 +38,7 @@ func NewRouter() *Router {
 
 func (r *Router) SetupRoutes() {
 	router := r.r
-	router.HandleFunc("/_health", makeHealthCheckHandler(r.Info))
+	router.HandleFunc("/_health", makeHealthCheckHandler(r.Config))
 	router.HandleFunc("/sources", makeListSourcesHandler(r.SourceEnum))
 	router.Use(loggingMiddleware)
 }

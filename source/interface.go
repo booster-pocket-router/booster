@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package provider
+package source
 
 import (
 	"context"
@@ -27,12 +27,14 @@ import (
 	"upspin.io/log"
 )
 
+type DialHook func(ref, network, address string, err error)
+
 // Interface is a wrapper around net.Interface and
 // implements the core.Source interface, i.e. is it
 // capable of providing network connections through
 // the device it is referring to.
 type Interface struct {
-	net.Interface
+	ifi net.Interface
 
 	// If OnDialErr is not nil, it is called each time that the
 	// dialer is not able to create a network connection.
@@ -44,8 +46,8 @@ type Interface struct {
 	}
 }
 
-func (i *Interface) ID() string {
-	return i.Name
+func (i *Interface) Name() string {
+	return i.ifi.Name
 }
 
 func (i *Interface) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
@@ -54,7 +56,7 @@ func (i *Interface) DialContext(ctx context.Context, network, address string) (n
 	conn, err := i.dialContext(ctx, network, address)
 	if err != nil {
 		if f := i.OnDialErr; f != nil {
-			f(i.ID(), network, address, err)
+			f(i.Name(), network, address, err)
 		}
 		return nil, err
 	}
@@ -73,7 +75,7 @@ func (i *Interface) DialContext(ctx context.Context, network, address string) (n
 // The connection is left intact even in case of error, in which case the
 // connection is simply ignored by the interface.
 func (i *Interface) Follow(c net.Conn) error {
-	wc := newConn(c, i.ID()) // wrapped connection
+	wc := newConn(c, i.Name()) // wrapped connection
 
 	i.conns.Lock()
 	defer i.conns.Unlock()
@@ -86,7 +88,7 @@ func (i *Interface) Follow(c net.Conn) error {
 		// Another connection with the same identifier as this one is already in
 		// process. The connection identifiers are supposed to be unique, so this
 		// means that we'll not be able to follow this connection.
-		return fmt.Errorf("DialContext: discarding connection (id: %s) because source (%s) has a connection in process with the same identifier", wc.uuid(), i.ID())
+		return fmt.Errorf("DialContext: discarding connection (id: %s) because source (%s) has a connection in process with the same identifier", wc.uuid(), i.Name())
 	}
 
 	wc.onClose = func(id string) {
@@ -113,8 +115,12 @@ func (i *Interface) Close() error {
 	return nil
 }
 
+func (i *Interface) Value(key interface{}) interface{} {
+	return nil
+}
+
 func (i *Interface) String() string {
-	return i.ID()
+	return i.Name()
 }
 
 // Len returns the size
@@ -134,7 +140,7 @@ func (i *Interface) MarshalJSON() ([]byte, error) {
 		Name      string `json:"name"`
 		OpenConns int    `json:"open_conns"`
 	}{
-		Name:      i.Name,
+		Name:      i.Name(),
 		OpenConns: i.Len(),
 	})
 }

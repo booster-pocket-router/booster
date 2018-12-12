@@ -22,19 +22,20 @@ import (
 	"net/http"
 
 	"github.com/booster-proj/booster/core"
+	"github.com/booster-proj/booster"
 )
 
-func makeHealthCheckHandler(info StaticInfo) func(w http.ResponseWriter, r *http.Request) {
+func makeHealthCheckHandler(config booster.Config) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 
 		json.NewEncoder(w).Encode(struct {
 			Alive bool `json:"alive"`
-			StaticInfo
+			booster.Config
 		}{
 			Alive:      true,
-			StaticInfo: info,
+			Config: config,
 		})
 	}
 }
