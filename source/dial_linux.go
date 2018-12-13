@@ -32,8 +32,8 @@ func (i *Interface) dialContext(ctx context.Context, network, address string) (n
 	d := &net.Dialer{
 		Control: func(network, address string, c syscall.RawConn) error {
 			return c.Control(func(fd uintptr) {
-				if err := unix.BindToDevice(int(fd), i.Name); err != nil {
-					log.Debug.Printf("dialContext_linux error: unable to bind to interface %v: %v", i.Name, err)
+				if err := unix.BindToDevice(int(fd), i.Name()); err != nil {
+					log.Debug.Printf("dialContext_linux error: unable to bind to interface %v: %v", i.Name(), err)
 				}
 			})
 		},
