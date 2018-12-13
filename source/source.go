@@ -1,5 +1,4 @@
-/*
-Copyright (C) 2018 KIM KeepInMind GmbH/srl
+/* Copyright (C) 2018 KIM KeepInMind GmbH/srl
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -15,38 +14,13 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package source_test
+package source
 
 import (
-	"net"
-	"testing"
-
-	"github.com/booster-proj/booster/source"
+	"github.com/booster-proj/booster/core"
 )
 
-func TestFollow(t *testing.T) {
-	conn0, _ := net.Pipe()
-
-	iti0 := &source.Interface{}
-
-	l := iti0.Len()
-	if l != 0 {
-		t.Fatalf("Unexpected Len: wanted 0, found %d", l)
-	}
-
-	if _, err := iti0.Follow(conn0); err != nil {
-		t.Fatal(err)
-	}
-	l = iti0.Len()
-	if l != 1 {
-		t.Fatalf("Unexpected Len: wanted 1, found %d", l)
-	}
-
-	if err := iti0.Close(); err != nil {
-		t.Fatal(err)
-	}
-	l = iti0.Len()
-	if l != 0 {
-		t.Fatalf("Unexpected Len: wanted 0, found %d", l)
-	}
+func WithValue(parent core.Source, key interface{}, value interface{}) core.Source {
+	// TODO: implement
+	return parent
 }

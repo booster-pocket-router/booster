@@ -15,19 +15,19 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package listener_test
+package source_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"sort"
 	"testing"
 	"time"
 
-	"github.com/booster-proj/booster/listener"
-	"github.com/booster-proj/booster/listener/provider"
-	"github.com/booster-proj/core"
+	"github.com/booster-proj/booster/core"
+	"github.com/booster-proj/booster/source"
 )
 
 type mock struct {
@@ -35,7 +35,7 @@ type mock struct {
 	active bool
 }
 
-func (s *mock) ID() string {
+func (s *mock) Name() string {
 	return s.id
 }
 
@@ -50,8 +50,25 @@ func (s *mock) Close() error {
 	return nil
 }
 
+func (s *mock) Value(key interface{}) interface{} {
+	return nil
+}
+
 func (s *mock) String() string {
-	return s.ID()
+	return s.Name()
+}
+
+func TestHooker(t *testing.T) {
+	h := &source.Hooker{}
+	ref := "foo"
+	h.HandleDialErr(ref, "net", "addr", errors.New("some error"))
+
+	if err := h.HookErr(ref); err == nil {
+		t.Fatalf("Wanted hook error for id %s, found nil", ref)
+	}
+	if err := h.HookErr(ref); err != nil {
+		t.Fatalf("Wanted nil error for id %s, found %v", ref, err)
+	}
 }
 
 type storage struct {
@@ -71,7 +88,7 @@ func (s *storage) Del(ss ...core.Source) {
 	filtered := make([]core.Source, 0, len(ss))
 	filter := func(src core.Source) bool {
 		for _, v := range ss {
-			if src.ID() == v.ID() {
+			if src.Name() == v.Name() {
 				return false
 			}
 		}
@@ -89,10 +106,8 @@ func (s *storage) Del(ss ...core.Source) {
 	}
 }
 
-func (s *storage) Do(f func(core.Source)) {
-	for _, v := range s.data {
-		f(v)
-	}
+func (s *storage) GetActive() []core.Source {
+	return s.data
 }
 
 func (s *storage) Len() int {
@@ -111,9 +126,9 @@ func (p *mockProvider) Provide(ctx context.Context) ([]core.Source, error) {
 	return list, nil
 }
 
-func (p *mockProvider) Check(ctx context.Context, src core.Source, level provider.Confidence) error {
+func (p *mockProvider) Check(ctx context.Context, src core.Source, level source.Confidence) error {
 	switch level {
-	case provider.High:
+	case source.High:
 		_, err := src.DialContext(ctx, "net", "addr")
 		return err
 	default:
@@ -123,7 +138,7 @@ func (p *mockProvider) Check(ctx context.Context, src core.Source, level provide
 
 func TestRun_cancel(t *testing.T) {
 	s := new(storage)
-	l := listener.New(s)
+	l := source.NewListener(s)
 	c := make(chan error)
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
@@ -162,11 +177,11 @@ func sameContent(a, b []core.Source) bool {
 	copy(sortedA, a)
 	copy(sortedB, b)
 
-	sort.SliceStable(sortedA, func(i, j int) bool { return sortedA[i].ID() > sortedA[j].ID() })
-	sort.SliceStable(sortedB, func(i, j int) bool { return sortedB[i].ID() > sortedB[j].ID() })
+	sort.SliceStable(sortedA, func(i, j int) bool { return sortedA[i].Name() > sortedA[j].Name() })
+	sort.SliceStable(sortedB, func(i, j int) bool { return sortedB[i].Name() > sortedB[j].Name() })
 
 	for i, v := range sortedA {
-		if v.ID() != sortedB[i].ID() {
+		if v.Name() != sortedB[i].Name() {
 			return false
 		}
 	}
@@ -187,7 +202,7 @@ func TestDiff(t *testing.T) {
 	}
 
 	for i, v := range tt {
-		add, remove := listener.Diff(v.old, v.cur)
+		add, remove := source.Diff(v.old, v.cur)
 		if !sameContent(add, v.add) {
 			t.Fatalf("%d: Unexpected add context: wanted %v, found %v", i, v.add, add)
 		}
@@ -202,7 +217,7 @@ func TestDiff(t *testing.T) {
 		// remove things
 		f := func(src core.Source) bool {
 			for _, v := range remove {
-				if v.ID() == src.ID() {
+				if v.Name() == src.Name() {
 					return false
 				}
 			}
@@ -246,7 +261,7 @@ func TestPoll(t *testing.T) {
 	p := &mockProvider{
 		sources: []*mock{en0, awl0},
 	}
-	l := listener.New(s)
+	l := source.NewListener(s)
 	l.Provider = p
 
 	ctx := context.Background()
@@ -254,11 +269,11 @@ func TestPoll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i, v := range []string{en0.ID()} {
+	for i, v := range []string{en0.Name()} {
 		select {
 		case s := <-putc:
-			if v != s.ID() {
-				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.ID())
+			if v != s.Name() {
+				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.Name())
 			}
 		case <-time.After(time.Millisecond * 200):
 			t.Fatalf("%d: Deadline exceeded", i)
@@ -270,11 +285,11 @@ func TestPoll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i, v := range []string{awl0.ID()} {
+	for i, v := range []string{awl0.Name()} {
 		select {
 		case s := <-putc:
-			if v != s.ID() {
-				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.ID())
+			if v != s.Name() {
+				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.Name())
 			}
 		case <-time.After(time.Millisecond * 100):
 		}
@@ -285,11 +300,11 @@ func TestPoll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i, v := range []string{awl0.ID()} {
+	for i, v := range []string{awl0.Name()} {
 		select {
 		case s := <-delc:
-			if v != s.ID() {
-				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.ID())
+			if v != s.Name() {
+				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.Name())
 			}
 		case <-time.After(time.Millisecond * 200):
 			t.Fatalf("%d: Deadline exceeded", i)
@@ -304,11 +319,11 @@ func TestPoll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i, v := range []string{awl0.ID()} {
+	for i, v := range []string{awl0.Name()} {
 		select {
 		case s := <-putc:
-			if v != s.ID() {
-				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.ID())
+			if v != s.Name() {
+				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.Name())
 			}
 		case <-time.After(time.Millisecond * 200):
 			t.Fatalf("%d: Deadline exceeded", i)

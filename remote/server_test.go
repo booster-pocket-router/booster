@@ -15,38 +15,31 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package source_test
+package remote_test
 
 import (
-	"net"
+	"context"
+	"net/http"
 	"testing"
+	"time"
 
-	"github.com/booster-proj/booster/source"
+	"github.com/booster-proj/booster/remote"
 )
 
-func TestFollow(t *testing.T) {
-	conn0, _ := net.Pipe()
+func TestListenAndServe(t *testing.T) {
+	srv := remote.New(http.DefaultServeMux)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	iti0 := &source.Interface{}
+	c := make(chan error)
+	go func() {
+		c <- srv.ListenAndServe(ctx, 0)
+	}()
 
-	l := iti0.Len()
-	if l != 0 {
-		t.Fatalf("Unexpected Len: wanted 0, found %d", l)
-	}
-
-	if _, err := iti0.Follow(conn0); err != nil {
-		t.Fatal(err)
-	}
-	l = iti0.Len()
-	if l != 1 {
-		t.Fatalf("Unexpected Len: wanted 1, found %d", l)
-	}
-
-	if err := iti0.Close(); err != nil {
-		t.Fatal(err)
-	}
-	l = iti0.Len()
-	if l != 0 {
-		t.Fatalf("Unexpected Len: wanted 0, found %d", l)
+	cancel()
+	select {
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("shutdown timeout")
+	case <-c:
 	}
 }

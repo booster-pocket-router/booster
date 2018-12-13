@@ -21,9 +21,18 @@ import (
 	"context"
 	"net"
 
-	"github.com/booster-proj/core"
+	"github.com/booster-proj/booster/core"
 	"upspin.io/log"
 )
+
+type Config struct {
+	Version   string `json:"version"`
+	Commit    string `json:"commit"`
+	BuildTime string `json:"build_time"`
+
+	ProxyPort  int    `json:"proxy_port"`
+	ProxyProto string `json:"proxy_proto"`
+}
 
 // New returns an instance of a booster dialer.
 func New(b *core.Balancer) core.Dialer {
@@ -47,12 +56,12 @@ func (d *dialer) DialContext(ctx context.Context, network, address string) (conn
 			return
 		}
 
-		log.Debug.Printf("DialContext: Attempt #%d to connect to %v (source %v)", i, address, src.ID())
+		log.Debug.Printf("DialContext: Attempt #%d to connect to %v (source %v)", i, address, src.Name())
 
 		conn, err = src.DialContext(ctx, "tcp4", address)
 		if err != nil {
 			// Log this error, otherwise it will be silently skipped.
-			log.Error.Printf("Unable to dial connection to %v using source %v. Error: %v", address, src.ID(), err)
+			log.Error.Printf("Unable to dial connection to %v using source %v. Error: %v", address, src.Name(), err)
 			bl = append(bl, src)
 			continue
 		}

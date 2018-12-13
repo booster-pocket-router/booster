@@ -27,8 +27,10 @@ import (
 	"os/signal"
 
 	"github.com/booster-proj/booster"
-	"github.com/booster-proj/booster/listener"
-	"github.com/booster-proj/core"
+	"github.com/booster-proj/booster/core"
+	"github.com/booster-proj/booster/remote"
+	"github.com/booster-proj/booster/source"
+	"github.com/booster-proj/booster/store"
 	"github.com/booster-proj/proxy"
 	"golang.org/x/sync/errgroup"
 	"upspin.io/log"
@@ -46,8 +48,11 @@ var (
 	printVersion = flag.Bool("version", false, "Prints version")
 
 	// Proxy configuration
-	port     = flag.Int("port", 1080, "Server listening port")
+	pPort    = flag.Int("proxy-port", 1080, "Proxy server listening port")
 	rawProto = flag.String("proto", "socks5", "Proxy protocol used. Available protocols: http, socks5.")
+
+	// API configuration
+	apiPort = flag.Int("api-port", 7764, "API server listening port")
 
 	// Log configuration
 	verbose     = flag.Bool("verbose", false, "If set, makes the logger print also debug messages")
@@ -97,9 +102,24 @@ func main() {
 		log.Fatal(err)
 	}
 
+	config := booster.Config{
+		Version:    version,
+		Commit:     commit,
+		BuildTime:  buildTime,
+		ProxyPort:  *pPort,
+		ProxyProto: *rawProto,
+	}
+
 	b := new(core.Balancer)
-	l := listener.New(b)
+	rs := store.New(b)
+	l := source.NewListener(rs)
 	d := booster.New(b)
+
+	router := remote.NewRouter()
+	router.Config = config
+	router.Store = rs
+	router.SetupRoutes()
+	r := remote.New(router)
 
 	// Make the proxy use booster as dialer
 	p.DialWith(d)
@@ -112,11 +132,18 @@ func main() {
 
 	g.Go(func() error {
 		log.Info.Printf("Listener started")
+		defer log.Info.Printf("Listener stopped.")
 		return l.Run(ctx)
 	})
 	g.Go(func() error {
-		log.Info.Printf("Booster proxy (%v) listening on :%d", p.Protocol(), *port)
-		return p.ListenAndServe(ctx, *port)
+		log.Info.Printf("Booster proxy (%v) listening on :%d", p.Protocol(), *pPort)
+		defer log.Info.Print("Booster proxy stopped.")
+		return p.ListenAndServe(ctx, *pPort)
+	})
+	g.Go(func() error {
+		log.Info.Printf("Booster API listening on :%d", *apiPort)
+		defer log.Info.Print("Booster API stopped.")
+		return r.ListenAndServe(ctx, *apiPort)
 	})
 
 	if err := g.Wait(); err != nil {

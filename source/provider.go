@@ -14,17 +14,13 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// Package provider contains implementations of source providers.
-// For example the local provider one, which finds and inspects
-// local network interfaces.
-package provider
+package source
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/booster-proj/booster/source"
-	"github.com/booster-proj/core"
+	"github.com/booster-proj/booster/core"
 )
 
 type Confidence int
@@ -34,41 +30,39 @@ const (
 	High
 )
 
-type DialHook func(ref, network, address string, err error)
-
-// Merged is a provider implementation which acts as a wrapper
+// Provider is a provider implementation which acts as a wrapper
 // around many provider implementations.
-type Merged struct {
-	// ErrHook is set to each source that is collected by this
+type MergedProvider struct {
+	// OnDialErr is set to each source that is collected by this
 	// provider. It is used to receive a callback when a source
 	// is no longer able to create network connections.
-	ErrHook DialHook
-	local   *Local
+	OnDialErr DialHook
+	local     *Local
 }
 
 // Provide returns the list of sources returned by each provider owned
 // by merged. Currently only a local provider is queried.
-func (m *Merged) Provide(ctx context.Context) ([]core.Source, error) {
-	if m.local == nil {
-		m.local = new(Local)
+func (p *MergedProvider) Provide(ctx context.Context) ([]core.Source, error) {
+	if p.local == nil {
+		p.local = new(Local)
 	}
 
-	interfaces, err := m.local.Provide(ctx, Low)
+	interfaces, err := p.local.Provide(ctx, Low)
 	if err != nil {
 		return []core.Source{}, err
 	}
 
 	sources := make([]core.Source, 0, len(interfaces))
 	for _, v := range interfaces {
-		v.ErrHook = m.ErrHook
+		v.OnDialErr = p.OnDialErr
 		sources = append(sources, v)
 	}
 	return sources, nil
 }
 
-func (m *Merged) Check(ctx context.Context, src core.Source, level Confidence) error {
-	if ifi, ok := src.(*source.Interface); ok {
-		return m.local.Check(ctx, ifi, level)
+func (p *MergedProvider) Check(ctx context.Context, src core.Source, level Confidence) error {
+	if ifi, ok := src.(*Interface); ok {
+		return p.local.Check(ctx, ifi, level)
 	}
-	return fmt.Errorf("Merged provider: unable to find suitable checks for source %s", src.ID())
+	return fmt.Errorf("provider: unable to find suitable checks for source %s", src.Name())
 }

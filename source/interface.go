@@ -15,9 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// Package source provides implementations of entities, such as network
-// interfaces, that are able to create network connections, i.e. are
-// "sources" of Internet.
 package source
 
 import (
@@ -29,16 +26,18 @@ import (
 	"upspin.io/log"
 )
 
+type DialHook func(ref, network, address string, err error)
+
 // Interface is a wrapper around net.Interface and
 // implements the core.Source interface, i.e. is it
 // capable of providing network connections through
 // the device it is referring to.
 type Interface struct {
-	net.Interface
+	ifi net.Interface
 
-	// If ErrHook is not nil, it is called each time that the
+	// If OnDialErr is not nil, it is called each time that the
 	// dialer is not able to create a network connection.
-	ErrHook func(ref, network, address string, err error)
+	OnDialErr DialHook
 
 	conns struct {
 		sync.Mutex
@@ -46,27 +45,26 @@ type Interface struct {
 	}
 }
 
-func (i *Interface) ID() string {
-	return i.Name
+func (i *Interface) Name() string {
+	return i.ifi.Name
 }
 
 func (i *Interface) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	// Implementations of the `dialContext` function can be found
-	// in the {unix, linux}_dial.go files.
+	// in the {darwin, linux, windows}_dial.go files.
 	conn, err := i.dialContext(ctx, network, address)
 	if err != nil {
-		if f := i.ErrHook; f != nil {
-			f(i.ID(), network, address, err)
+		if f := i.OnDialErr; f != nil {
+			f(i.Name(), network, address, err)
 		}
 		return nil, err
 	}
 
 	// Follow the new connection if possible
-	go func() {
-		if err := i.Follow(conn); err != nil {
-			log.Error.Println(err)
-		}
-	}()
+	conn, err = i.Follow(conn)
+	if err != nil {
+		log.Error.Println(err)
+	}
 
 	return conn, nil
 }
@@ -74,8 +72,8 @@ func (i *Interface) DialContext(ctx context.Context, network, address string) (n
 // Follow adds conn to the list of connections that the source is handling.
 // The connection is left intact even in case of error, in which case the
 // connection is simply ignored by the interface.
-func (i *Interface) Follow(c net.Conn) error {
-	wc := newConn(c, i.ID()) // wrapped connection
+func (i *Interface) Follow(c net.Conn) (net.Conn, error) {
+	wc := newConn(c, i.Name()) // wrapped connection
 
 	i.conns.Lock()
 	defer i.conns.Unlock()
@@ -88,7 +86,7 @@ func (i *Interface) Follow(c net.Conn) error {
 		// Another connection with the same identifier as this one is already in
 		// process. The connection identifiers are supposed to be unique, so this
 		// means that we'll not be able to follow this connection.
-		return fmt.Errorf("DialContext: discarding connection (id: %s) because source (%s) has a connection in process with the same identifier", wc.uuid(), i.ID())
+		return c, fmt.Errorf("DialContext: discarding connection (id: %s) because source (%s) has a connection in process with the same identifier", wc.uuid(), i.Name())
 	}
 
 	wc.onClose = func(id string) {
@@ -99,7 +97,7 @@ func (i *Interface) Follow(c net.Conn) error {
 	}
 	i.conns.val[wc.uuid()] = wc
 
-	return nil
+	return wc, nil
 }
 
 func (i *Interface) Close() error {
@@ -115,8 +113,12 @@ func (i *Interface) Close() error {
 	return nil
 }
 
+func (i *Interface) Value(key interface{}) interface{} {
+	return nil
+}
+
 func (i *Interface) String() string {
-	return i.ID()
+	return i.Name()
 }
 
 // Len returns the size

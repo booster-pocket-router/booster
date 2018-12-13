@@ -15,38 +15,45 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-package source_test
+package remote
 
 import (
-	"net"
-	"testing"
-
-	"github.com/booster-proj/booster/source"
+	"context"
+	"fmt"
+	"net/http"
+	"time"
 )
 
-func TestFollow(t *testing.T) {
-	conn0, _ := net.Pipe()
+type Remote struct {
+	*http.Server
+}
 
-	iti0 := &source.Interface{}
+func New(h http.Handler) *Remote {
+	return &Remote{
+		&http.Server{
+			WriteTimeout: time.Second * 15,
+			ReadTimeout:  time.Second * 15,
+			IdleTimeout:  time.Second * 60,
+			Handler:      h,
+		},
+	}
+}
 
-	l := iti0.Len()
-	if l != 0 {
-		t.Fatalf("Unexpected Len: wanted 0, found %d", l)
-	}
+func (r *Remote) ListenAndServe(ctx context.Context, port int) error {
+	c := make(chan error)
+	go func() {
+		r.Server.Addr = fmt.Sprintf(":%d", port)
+		c <- r.Server.ListenAndServe()
+	}()
 
-	if _, err := iti0.Follow(conn0); err != nil {
-		t.Fatal(err)
-	}
-	l = iti0.Len()
-	if l != 1 {
-		t.Fatalf("Unexpected Len: wanted 1, found %d", l)
-	}
+	select {
+	case <-ctx.Done():
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
 
-	if err := iti0.Close(); err != nil {
-		t.Fatal(err)
-	}
-	l = iti0.Len()
-	if l != 0 {
-		t.Fatalf("Unexpected Len: wanted 0, found %d", l)
+		r.Shutdown(ctx)
+		return <-c
+	case err := <-c:
+		return err
 	}
 }
