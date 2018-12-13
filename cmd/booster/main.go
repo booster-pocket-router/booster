@@ -117,7 +117,7 @@ func main() {
 
 	router := remote.NewRouter()
 	router.Config = config
-	router.Provider = rs
+	router.Store = rs
 	router.SetupRoutes()
 	r := remote.New(router)
 

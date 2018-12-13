@@ -25,27 +25,27 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type SnapshotProvider interface {
-	GetSourcesSnapshot() []*store.DummySource
-	GetPoliciesSnapshot() []*store.Policy
-}
-
 type Router struct {
 	r *mux.Router
 
-	Config   booster.Config
-	Provider SnapshotProvider
+	Config booster.Config
+	Store  *store.SourceStore
 }
 
 func NewRouter() *Router {
 	return &Router{r: mux.NewRouter()}
 }
 
+// SetupRoutes adds the routes available to the router. Make sure
+// to fill the public fields of the Router before calling this
+// function, otherwise the handlers will not be able to work
+// properly.
 func (r *Router) SetupRoutes() {
 	router := r.r
-	router.HandleFunc("/_health", makeHealthCheckHandler(r.Config))
-	router.HandleFunc("/sources", makeSourcesSnapshotHandler(r.Provider))
-	router.HandleFunc("/policies", makePoliciesSnapshotHandler(r.Provider))
+	router.HandleFunc("/health", makeHealthCheckHandler(r.Config))
+	router.HandleFunc("/sources", makeSourcesHandler(r.Store))
+	router.HandleFunc("/sources/{name}/block", makeBlockHandler(r.Store)).Methods("POST", "DELETE")
+	router.HandleFunc("/policies", makePoliciesHandler(r.Store))
 	router.Use(loggingMiddleware)
 }
 
