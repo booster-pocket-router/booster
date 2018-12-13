@@ -1,0 +1,16 @@
+language: go
+go:
+  - master
+
+os:
+  - linux
+  - osx
+
+dist: trusty
+sudo: false
+
+install: true
+
+script:
+  - env GO111MODULE=on make
+  - env GO111MODULE=on make test
