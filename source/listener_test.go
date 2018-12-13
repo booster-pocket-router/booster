@@ -106,7 +106,7 @@ func (s *storage) Del(ss ...core.Source) {
 	}
 }
 
-func (s *storage) GetAccepted() []core.Source {
+func (s *storage) GetActive() []core.Source {
 	return s.data
 }
 

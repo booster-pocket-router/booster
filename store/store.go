@@ -87,15 +87,35 @@ func New(store Store) *SourceStore {
 	}
 }
 
-// GetAccepted returns the list of sources that are actually
-// being used by the protected storage. The two lists (the
-// complete and the protected one) could differ due to the
-// activation of a blocking policy for example.
-func (ss *SourceStore) GetAccepted() []core.Source {
+// GetAccepeted returns the list sources stored in the
+// protected storage.
+func (ss *SourceStore) GetProtected() []core.Source {
 	acc := make([]core.Source, 0, ss.protected.Len())
 	ss.protected.Do(func(src core.Source) {
 		acc = append(acc, src)
 	})
+	return acc
+}
+
+// GetActive returns the list of protected source plus the
+// list of sources active, but blocked by a policy.
+func (ss *SourceStore) GetActive() []core.Source {
+	ss.mux.Lock()
+	defer ss.mux.Unlock()
+
+	// Append protected sources...
+	acc := make([]core.Source, 0, ss.protected.Len()+len(ss.underPolicy))
+	ss.protected.Do(func(src core.Source) {
+		acc = append(acc, src)
+	})
+
+	// ...and the ones under policy.
+	for _, v := range ss.underPolicy {
+		if v.internal != nil {
+			acc = append(acc, v.internal)
+		}
+	}
+
 	return acc
 }
 
@@ -219,9 +239,9 @@ func (ss *SourceStore) Put(sources ...core.Source) {
 	ss.mux.Lock()
 	defer ss.mux.Unlock()
 
-	f := func(src core.Source) (*Policy, bool) {
+	sf := func(src core.Source) (*Policy, bool) {
 		for _, v := range ss.Policies {
-			if v.Accept(src.Name()) {
+			if !v.Accept(src.Name()) {
 				return v, false
 			}
 		}
@@ -231,7 +251,7 @@ func (ss *SourceStore) Put(sources ...core.Source) {
 	acc := make([]core.Source, 0, len(sources))
 	up := make([]*DummySource, 0, len(sources))
 	for _, v := range sources {
-		if p, ok := f(v); ok {
+		if p, ok := sf(v); ok {
 			acc = append(acc, v)
 		} else {
 			up = append(up, &DummySource{
@@ -247,7 +267,21 @@ func (ss *SourceStore) Put(sources ...core.Source) {
 	if ss.underPolicy == nil {
 		ss.underPolicy = make([]*DummySource, 0, len(up))
 	}
-	ss.underPolicy = append(ss.underPolicy, up...)
+
+	// Avoid adding duplicate values.
+	dsf := func(src *DummySource) bool {
+		for _, v := range ss.underPolicy {
+			if v.Name == src.Name {
+				return false
+			}
+		}
+		return true
+	}
+	for _, v := range up {
+		if dsf(v) {
+			ss.underPolicy = append(ss.underPolicy, v)
+		}
+	}
 }
 
 // Del removes the policies from the protected storage and

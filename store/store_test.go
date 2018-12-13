@@ -152,7 +152,7 @@ func TestAddDelPolicy_withSideEffects(t *testing.T) {
 
 	// Query the store and check that it returns our source
 	// (it should not be blocked).
-	ss := s.GetAccepted()
+	ss := s.GetProtected()
 	if len(ss) != 1 {
 		t.Fatalf("Unexpected accepted sources: wanted len == 1, found: %+v", ss)
 	}
@@ -171,14 +171,14 @@ func TestAddDelPolicy_withSideEffects(t *testing.T) {
 	s.AddPolicy(p)
 
 	// Now check if the source is actually blocked.
-	ss = s.GetAccepted()
+	ss = s.GetProtected()
 	if len(ss) != 0 {
 		t.Fatalf("Unexpected accepted sources: wanted len == 0, found %+v", ss)
 	}
 
 	// Remove the policies and check the result again.
 	s.DelPolicy(p.ID)
-	ss = s.GetAccepted()
+	ss = s.GetProtected()
 	if len(ss) != 1 {
 		t.Fatalf("Unexpected accepted sources: wanted len == 1, found: %+v", ss)
 	}
@@ -196,7 +196,7 @@ func TestPut(t *testing.T) {
 	s0 := &mock{id: "foo"}
 	s.Put(s0)
 
-	ss := s.GetAccepted()
+	ss := s.GetProtected()
 	if len(ss) != 1 {
 		t.Fatalf("Unexpected accepted sources: wanted len == 1, found: %+v", ss)
 	}
@@ -217,7 +217,7 @@ func TestPut(t *testing.T) {
 	s1 := &mock{id: "bar"}
 	s.Put(s1)
 
-	ss = s.GetAccepted()
+	ss = s.GetProtected()
 	if len(ss) != 1 {
 		t.Fatalf("Unexpected accepted sources: wanted len == 1, found: %+v", ss)
 	}
@@ -226,7 +226,7 @@ func TestPut(t *testing.T) {
 	// into the accepted sources.
 	s.DelPolicy(p.ID)
 
-	ss = s.GetAccepted()
+	ss = s.GetProtected()
 	if len(ss) != 2 {
 		t.Fatalf("Unexpected accepted sources: wanted len == 2, found: %+v", ss)
 	}
@@ -257,7 +257,7 @@ func TestDel(t *testing.T) {
 	s.AddPolicy(p)
 	s.Put(s1) // blocked by the policy
 
-	ss := s.GetAccepted()
+	ss := s.GetProtected()
 	if len(ss) != 1 {
 		t.Fatalf("Unexpected accepted sources: wanted len == 1, found: %+v", ss)
 	}
@@ -265,14 +265,14 @@ func TestDel(t *testing.T) {
 	// Now delete without removing the policy (otherwise s1 will
 	// be inserted into the same storage as s0)
 	s.Del(s0, s1)
-	ss = s.GetAccepted()
+	ss = s.GetProtected()
 	if len(ss) != 0 {
 		t.Fatalf("Unexpected accepted sources: wanted len == 0, found: %+v", ss)
 	}
 
 	// Remove the policy: no sources should added to the storage.
 	s.DelPolicy(p.ID)
-	ss = s.GetAccepted()
+	ss = s.GetProtected()
 	if len(ss) != 0 {
 		t.Fatalf("Unexpected accepted sources: wanted len == 0, found: %+v", ss)
 	}

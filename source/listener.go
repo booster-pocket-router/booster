@@ -33,7 +33,7 @@ import (
 type Store interface {
 	Put(...core.Source)
 	Del(...core.Source)
-	GetAccepted() []core.Source
+	GetActive() []core.Source
 }
 
 // Provider describes a service that is capable of providing sources
@@ -182,7 +182,7 @@ func (l *Listener) Poll(ctx context.Context) error {
 		return err
 	}
 
-	old := l.s.GetAccepted()
+	old := l.s.GetActive()
 
 	// Find difference from old to cur.
 	add, remove := Diff(old, cur)
@@ -207,7 +207,7 @@ func (l *Listener) Poll(ctx context.Context) error {
 	}
 
 	// Eventually remove the sources that contain hook errors.
-	old = l.s.GetAccepted() // as the list has been updated before the last call.
+	old = l.s.GetActive() // as the list has been updated before the last call.
 	acc := make([]core.Source, 0, len(old))
 	for _, src := range old {
 		if err = l.h.HookErr(src.Name()); err != nil {
