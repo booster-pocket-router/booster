@@ -31,6 +31,7 @@ import (
 	"github.com/booster-proj/booster/source"
 	"github.com/booster-proj/booster/store"
 	"github.com/booster-proj/proxy"
+	"github.com/davecheney/mdns"
 	"golang.org/x/sync/errgroup"
 	"upspin.io/log"
 )
@@ -105,6 +106,12 @@ func main() {
 
 	captureSignals(cancel)
 
+	// Expose out services as mDNS entries
+	err = publishmDNSRecord("booster-proxy", *pPort, fmt.Sprintf("Version=%v", version))
+	if err != nil {
+		log.Error.Printf("Unable to add mDNS entries: %v", err)
+	}
+
 	g.Go(func() error {
 		log.Info.Printf("Listener started")
 		defer log.Info.Printf("Listener stopped.")
@@ -157,4 +164,18 @@ func proxyFromProto(rawProto string) (proxy.Proxy, error) {
 		err = errors.New("protocol (" + rawProto + ") is not yet supported")
 	}
 	return p, err
+}
+
+func publishmDNSRecord(name string, port int, txt string) error {
+	// SRV record
+	if err := mdns.Publish(fmt.Sprintf("_%s._tcp. 300 IN SRV 0 0 %d local.", name, port)); err != nil {
+		log.Fatalf("srv: %v", err)
+		return err
+	}
+	// TXT record
+	if err := mdns.Publish(fmt.Sprintf("_%s._tcp. 300 IN TXT \"%s\"", name, txt)); err != nil {
+		log.Fatalf("txt: %v", err)
+		return err
+	}
+	return nil
 }
