@@ -22,7 +22,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	stdLog "log"
 	"os"
 	"os/signal"
 
@@ -70,34 +69,10 @@ func main() {
 	}
 
 	// Setup logger
-	level := log.InfoLevel
-	if *verbose {
-		log.SetLevel("debug")
-		level = log.DebugLevel
-	}
-	if *externalLog {
-		log.SetOutput(nil)                     // disable "local" logging
-		log.Register(newExternalLogger(level)) // enable "remote" (snapcraft's daemon handled logger usually) logging
-	}
+	setupLogger(*verbose, *externalLog)
 
-	if *rawProto == "" {
-		log.Fatal("\"proto\" flag is required. Run `--help` for more.")
-	}
-
-	proto, err := proxy.ParseProto(*rawProto)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var p proxy.Proxy
-	switch proto {
-	case proxy.HTTP:
-		p, err = proxy.NewHTTP()
-	case proxy.SOCKS5:
-		p, err = proxy.NewSOCKS5()
-	default:
-		err = errors.New("protocol (" + *rawProto + ") is not yet supported")
-	}
+	// Find proxy from protocol
+	p, err := proxyFromProto(*rawProto)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -162,25 +137,24 @@ func captureSignals(cancel context.CancelFunc) {
 	}()
 }
 
-type externalLogger struct {
-	defaultLogger log.Logger
-	level         log.Level
-}
-
-func newExternalLogger(level log.Level) *externalLogger {
-	return &externalLogger{
-		level:         level,
-		defaultLogger: stdLog.New(os.Stderr, "", 0), // Do not add date/time information
-	}
-}
-
-func (l *externalLogger) Log(level log.Level, msg string) {
-	if level < l.level {
-		return
+func proxyFromProto(rawProto string) (proxy.Proxy, error) {
+	if rawProto == "" {
+		return nil, errors.New("\"proto\" flag is required. Run `--help` for more.")
 	}
 
-	l.defaultLogger.Println(msg)
-}
+	proto, err := proxy.ParseProto(rawProto)
+	if err != nil {
+		return nil, err
+	}
 
-func (l *externalLogger) Flush() {
+	var p proxy.Proxy
+	switch proto {
+	case proxy.HTTP:
+		p, err = proxy.NewHTTP()
+	case proxy.SOCKS5:
+		p, err = proxy.NewSOCKS5()
+	default:
+		err = errors.New("protocol (" + rawProto + ") is not yet supported")
+	}
+	return p, err
 }
