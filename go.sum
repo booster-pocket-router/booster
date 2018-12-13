@@ -1,5 +1,3 @@
-github.com/booster-proj/core v0.1.3 h1:A0X7v5hYhU++HCmfBzt2l8AovsyFgJg6L2VyKDzNpTI=
-github.com/booster-proj/core v0.1.3/go.mod h1:S45p4xcXkvm8HMxPunhHqmMWC2xeaKb2ZqIqLBjnMN4=
 github.com/booster-proj/proxy v0.1.3 h1:DrXIF0u8A0I+2KO3FTpzMeN646i1/fVvvP8OiMVHLKU=
 github.com/booster-proj/proxy v0.1.3/go.mod h1:le5Yiwdxl9hONszuGsdz3dJtafDZs938B2hwn7DctAc=
 github.com/gorilla/context v1.1.1 h1:AWwleXJkX/nhcU9bZSnZoi3h/qGYqQAGhq6zZe/aQW8=

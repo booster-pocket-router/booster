@@ -1,7 +1,6 @@
 module github.com/booster-proj/booster
 
 require (
-	github.com/booster-proj/core v0.1.3
 	github.com/booster-proj/proxy v0.1.3
 	github.com/gorilla/context v1.1.1 // indirect
 	github.com/gorilla/mux v1.6.2
