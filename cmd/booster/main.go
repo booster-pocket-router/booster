@@ -22,6 +22,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	stdLog "log"
 	"os"
 	"os/signal"
 	"strings"
@@ -173,4 +174,39 @@ func proxyFromProto(rawProto string) (proxy.Proxy, error) {
 		err = errors.New("protocol (" + rawProto + ") is not yet supported")
 	}
 	return p, err
+}
+
+func setupLogger(verbose bool, external bool) {
+	level := log.InfoLevel
+	if verbose {
+		log.SetLevel("debug")
+		level = log.DebugLevel
+	}
+	if external {
+		log.SetOutput(nil)                     // disable "local" logging
+		log.Register(newExternalLogger(level)) // enable "remote" (snapcraft's daemon handled logger usually) logging
+	}
+}
+
+type externalLogger struct {
+	defaultLogger log.Logger
+	level         log.Level
+}
+
+func newExternalLogger(level log.Level) *externalLogger {
+	return &externalLogger{
+		level:         level,
+		defaultLogger: stdLog.New(os.Stderr, "", 0), // Do not add date/time information
+	}
+}
+
+func (l *externalLogger) Log(level log.Level, msg string) {
+	if level < l.level {
+		return
+	}
+
+	l.defaultLogger.Println(msg)
+}
+
+func (l *externalLogger) Flush() {
 }
