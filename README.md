@@ -43,7 +43,7 @@ bin/booster
 ```
 Note: get help with the `--help` flag.
 
-Once started, `booster` can be queried and controller through its public HTTP Json API. These are some of the routes available (full documentation coming soon):
+Once started, `booster` can be remotely controller through its public HTTP Json API. These are some of the routes available (full documentation coming soon):
 ```
 GET /sources
 list of used sources
