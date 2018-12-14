@@ -108,13 +108,13 @@ func main() {
 	captureSignals(cancel)
 
 	// Expose out services as mDNS entries
-	s, err := zeroconf.Register("booster API", "_http._tcp", "local.", *apiPort, []string{
+	s, err := zeroconf.Register("booster api", "_http._tcp", "local.", *apiPort, []string{
 		"Version=" + version,
 		"Commit=" + commit,
 	}, nil)
 	defer s.Shutdown()
 
-	s, err = zeroconf.Register("booster Proxy", "_"+strings.ToLower(*rawProto)+"._tcp", "local.", *pPort, []string{
+	s, err = zeroconf.Register("booster proxy", "_"+strings.ToLower(*rawProto)+"._tcp", "local.", *pPort, []string{
 		"Protocol=" + *rawProto,
 		"Version=" + version,
 		"Commit=" + commit,
