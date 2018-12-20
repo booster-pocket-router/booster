@@ -19,11 +19,8 @@ package source
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"sync"
-
-	"upspin.io/log"
 )
 
 type DialHook func(ref, network, address string, err error)
@@ -39,10 +36,7 @@ type Interface struct {
 	// dialer is not able to create a network connection.
 	OnDialErr DialHook
 
-	conns struct {
-		sync.Mutex
-		val map[string]*conn
-	}
+	conns *conns
 }
 
 func (i *Interface) Name() string {
@@ -60,55 +54,27 @@ func (i *Interface) DialContext(ctx context.Context, network, address string) (n
 		return nil, err
 	}
 
-	// Follow the new connection if possible
-	conn, err = i.Follow(conn)
-	if err != nil {
-		log.Error.Println(err)
-	}
 
-	return conn, nil
+	return i.Follow(conn), nil
 }
 
-// Follow adds conn to the list of connections that the source is handling.
-// The connection is left intact even in case of error, in which case the
-// connection is simply ignored by the interface.
-func (i *Interface) Follow(c net.Conn) (net.Conn, error) {
-	wc := newConn(c, i.Name()) // wrapped connection
-
-	i.conns.Lock()
-	defer i.conns.Unlock()
-
-	if i.conns.val == nil {
-		i.conns.val = make(map[string]*conn)
+func (i *Interface) Follow(conn net.Conn) net.Conn {
+	wconn := WrapConn(conn)
+	wconn.OnClose = func(download *DataFlow, upload *DataFlow) {
+		// TODO: Do something with this data
+		i.conns.Del(wconn)
+	}
+	if i.conns == nil {
+		i.conns = &conns{}
 	}
 
-	if _, ok := i.conns.val[wc.uuid()]; ok {
-		// Another connection with the same identifier as this one is already in
-		// process. The connection identifiers are supposed to be unique, so this
-		// means that we'll not be able to follow this connection.
-		return c, fmt.Errorf("DialContext: discarding connection (id: %s) because source (%s) has a connection in process with the same identifier", wc.uuid(), i.Name())
-	}
+	i.conns.Add(wconn)
 
-	wc.onClose = func(id string) {
-		// Be careful with race condition with the Close funtion here.
-		i.conns.Lock()
-		delete(i.conns.val, id)
-		i.conns.Unlock()
-	}
-	i.conns.val[wc.uuid()] = wc
-
-	return wc, nil
+	return wconn
 }
 
 func (i *Interface) Close() error {
-	i.conns.Lock()
-	for _, v := range i.conns.val {
-		// Call close on each connection, but make the code run
-		// after this loop as ended.
-		defer v.Close()
-
-	}
-	i.conns.Unlock()
+	i.conns.Close()
 
 	return nil
 }
@@ -121,14 +87,50 @@ func (i *Interface) String() string {
 	return i.Name()
 }
 
-// Len returns the size
-func (i *Interface) Len() int {
-	i.conns.Lock()
-	defer i.conns.Unlock()
+type conns struct {
+	sync.Mutex
+	val []*Conn
+}
 
-	if i.conns.val == nil {
-		return 0
+func (c *conns) Add(conn *Conn) {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.val == nil {
+		c.val = make([]*Conn, 0, 10)
+	}
+	c.val = append(c.val, conn)
+}
+
+func (c *conns) Close() {
+	c.Lock()
+	defer c.Unlock()
+
+	for _, v := range c.val {
+		defer v.Close()
+	}
+	c.val = []*Conn{}
+}
+
+func (c *conns) Del(conn *Conn) {
+	c.Lock()
+	defer c.Unlock()
+
+	var t int
+	for i, v := range c.val {
+		if v == conn {
+			t = i
+			break
+		}
 	}
 
-	return len(i.conns.val)
+	c.val = append(c.val[:t], c.val[:t+1]...)
 }
+
+func (c *conns) Len() int {
+	c.Lock()
+	defer c.Unlock()
+
+	return len(c.val)
+}
+
