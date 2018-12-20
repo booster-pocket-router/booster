@@ -22,12 +22,12 @@ import (
 	"time"
 )
 
-// DataFlow collects data about a data tranmission. 
+// DataFlow collects data about a data tranmission.
 type DataFlow struct {
 	Start time.Time // Start of the first data transmitted.
-	End time.Time // Time of the last byte read/written. May be overridden multiple times.
-	N int // Number of bytes transmitted.
-	Avg float64 // Avg bytes/seconds.
+	End   time.Time // Time of the last byte read/written. May be overridden multiple times.
+	N     int       // Number of bytes transmitted.
+	Avg   float64   // Avg bytes/seconds.
 }
 
 // Begin computes the current time value, and sets it as the Start
@@ -56,7 +56,7 @@ func (f *DataFlow) Stop(start time.Time, n int) {
 	f.N += n
 	f.End = end
 
-	avg := float64(n)/d.Seconds() // avg transmission speed of this connection.
+	avg := float64(n) / d.Seconds() // avg transmission speed of this connection.
 	if f.Avg != 0 {
 		// Make an average also with the last average computed
 		avg = (f.Avg + avg) / 2
@@ -70,18 +70,18 @@ func (f *DataFlow) Stop(start time.Time, n int) {
 type Conn struct {
 	net.Conn
 
-	closed  bool // tells wether the connection was closed.
+	closed  bool                                       // tells wether the connection was closed.
 	OnClose func(download *DataFlow, upload *DataFlow) // Callback for close event.
 
 	Download *DataFlow
-	Upload *DataFlow
+	Upload   *DataFlow
 }
 
 func WrapConn(c net.Conn) *Conn {
 	return &Conn{
-		Conn: c,
+		Conn:     c,
 		Download: &DataFlow{},
-		Upload: &DataFlow{},
+		Upload:   &DataFlow{},
 	}
 }
 

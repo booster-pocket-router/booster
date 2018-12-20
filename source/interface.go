@@ -54,7 +54,6 @@ func (i *Interface) DialContext(ctx context.Context, network, address string) (n
 		return nil, err
 	}
 
-
 	return i.Follow(conn), nil
 }
 
@@ -133,4 +132,3 @@ func (c *conns) Len() int {
 
 	return len(c.val)
 }
-
