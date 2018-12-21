@@ -7,6 +7,7 @@ global:
 scrape_configs:
 - job_name: booster
   metrics_path: /metrics
+  # TODO: scape using the mDNS records
   static_configs:
     - targets:
-      - localhost:7764
+      - booster.local:7764
