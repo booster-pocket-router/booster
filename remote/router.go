@@ -28,8 +28,9 @@ import (
 type Router struct {
 	r *mux.Router
 
-	Config booster.Config
-	Store  *store.SourceStore
+	Config          booster.Config
+	Store           *store.SourceStore
+	MetricsProvider http.Handler
 }
 
 func NewRouter() *Router {
@@ -42,10 +43,15 @@ func NewRouter() *Router {
 // properly.
 func (r *Router) SetupRoutes() {
 	router := r.r
-	router.HandleFunc("/health", makeHealthCheckHandler(r.Config))
-	router.HandleFunc("/sources", makeSourcesHandler(r.Store))
-	router.HandleFunc("/sources/{name}/block", makeBlockHandler(r.Store)).Methods("POST", "DELETE")
-	router.HandleFunc("/policies", makePoliciesHandler(r.Store))
+	router.HandleFunc("/health.json", makeHealthCheckHandler(r.Config))
+	if store := r.Store; store != nil {
+		router.HandleFunc("/sources.json", makeSourcesHandler(store))
+		router.HandleFunc("/sources/{name}/block.json", makeBlockHandler(store)).Methods("POST", "DELETE")
+		router.HandleFunc("/policies.json", makePoliciesHandler(store))
+	}
+	if handler := r.MetricsProvider; handler != nil {
+		router.Handle("/metrics", handler)
+	}
 	router.Use(loggingMiddleware)
 }
 

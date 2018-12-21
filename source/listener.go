@@ -57,16 +57,31 @@ type Listener struct {
 var PollInterval = time.Second * 3
 var PollTimeout = time.Second * 5
 
+type Config struct {
+	Store         Store
+	Provider      Provider
+	MetricsBroker MetricsBroker
+}
+
 // NewListener creates a new Listener with the provided storage, using
-// as Provider the provider.Merged implementation.
-func NewListener(s Store) *Listener {
+// as Provider the MergedProvider implementation.
+func NewListener(c Config) *Listener {
 	hooker := &Hooker{hooked: make(map[string]*hookErr)}
-	return &Listener{
-		s: s,
-		h: hooker,
-		Provider: &MergedProvider{
-			OnDialErr: hooker.HandleDialErr,
+
+	var p Provider = &MergedProvider{
+		ControlInterface: func(ifi *Interface) {
+			ifi.OnDialErr = hooker.HandleDialErr
+			ifi.SetMetricsBroker(c.MetricsBroker)
 		},
+	}
+	if c.Provider != nil {
+		p = c.Provider
+	}
+
+	return &Listener{
+		s:        c.Store,
+		h:        hooker,
+		Provider: p,
 	}
 }
 

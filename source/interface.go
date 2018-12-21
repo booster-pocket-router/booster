@@ -25,6 +25,10 @@ import (
 
 type DialHook func(ref, network, address string, err error)
 
+type MetricsBroker interface {
+	SendDataFlow(labels map[string]string, data *DataFlow)
+}
+
 // Interface is a wrapper around net.Interface and
 // implements the core.Source interface, i.e. is it
 // capable of providing network connections through
@@ -36,7 +40,19 @@ type Interface struct {
 	// dialer is not able to create a network connection.
 	OnDialErr DialHook
 
+	metrics struct {
+		sync.Mutex
+		broker MetricsBroker
+	}
+
 	conns *conns
+}
+
+func (i *Interface) SetMetricsBroker(br MetricsBroker) {
+	i.metrics.Lock()
+	defer i.metrics.Unlock()
+
+	i.metrics.broker = br
 }
 
 func (i *Interface) Name() string {
@@ -59,9 +75,20 @@ func (i *Interface) DialContext(ctx context.Context, network, address string) (n
 
 func (i *Interface) Follow(conn net.Conn) net.Conn {
 	wconn := WrapConn(conn)
-	wconn.OnClose = func(download *DataFlow, upload *DataFlow) {
-		// TODO: Do something with this data
+	wconn.OnClose = func() {
 		i.conns.Del(wconn)
+	}
+	wconn.OnDownload = func(data *DataFlow) {
+		i.SendMetrics(map[string]string{
+			"source": i.Name(),
+			"target": conn.RemoteAddr().String(),
+		}, data)
+	}
+	wconn.OnUpload = func(data *DataFlow) {
+		i.SendMetrics(map[string]string{
+			"source": i.Name(),
+			"target": conn.RemoteAddr().String(),
+		}, data)
 	}
 	if i.conns == nil {
 		i.conns = &conns{}
@@ -70,6 +97,17 @@ func (i *Interface) Follow(conn net.Conn) net.Conn {
 	i.conns.Add(wconn)
 
 	return wconn
+}
+
+func (i *Interface) SendMetrics(labels map[string]string, data *DataFlow) {
+	if i.metrics.broker == nil {
+		return
+	}
+
+	i.metrics.Lock()
+	defer i.metrics.Unlock()
+
+	i.metrics.broker.SendDataFlow(labels, data)
 }
 
 func (i *Interface) Close() error {

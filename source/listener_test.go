@@ -138,7 +138,7 @@ func (p *mockProvider) Check(ctx context.Context, src core.Source, level source.
 
 func TestRun_cancel(t *testing.T) {
 	s := new(storage)
-	l := source.NewListener(s)
+	l := source.NewListener(source.Config{Store: s})
 	c := make(chan error)
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
@@ -261,7 +261,7 @@ func TestPoll(t *testing.T) {
 	p := &mockProvider{
 		sources: []*mock{en0, awl0},
 	}
-	l := source.NewListener(s)
+	l := source.NewListener(source.Config{Store: s})
 	l.Provider = p
 
 	ctx := context.Background()
