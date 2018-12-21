@@ -19,6 +19,7 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"sync"
 )
@@ -86,6 +87,14 @@ func (i *Interface) String() string {
 	return i.Name()
 }
 
+func (i *Interface) Len() int {
+	if i.conns == nil {
+		return 0
+	}
+
+	return i.conns.Len()
+}
+
 type conns struct {
 	sync.Mutex
 	val []*Conn
@@ -103,12 +112,12 @@ func (c *conns) Add(conn *Conn) {
 
 func (c *conns) Close() {
 	c.Lock()
-	defer c.Unlock()
-
 	for _, v := range c.val {
+		// Call close on the connetion after Unlock to
+		// avoid deadlocks.
 		defer v.Close()
 	}
-	c.val = []*Conn{}
+	c.Unlock()
 }
 
 func (c *conns) Del(conn *Conn) {
@@ -117,15 +126,18 @@ func (c *conns) Del(conn *Conn) {
 
 	var t int
 	for i, v := range c.val {
+		fmt.Println("Checking connection")
 		if v == conn {
+			fmt.Println("Connection found!")
 			t = i
 			break
 		}
 	}
 
-	c.val = append(c.val[:t], c.val[:t+1]...)
+	copy(c.val[t:], c.val[t+1:])
+	c.val[len(c.val)-1] = nil
+	c.val = c.val[:len(c.val)-1]
 }
-
 func (c *conns) Len() int {
 	c.Lock()
 	defer c.Unlock()

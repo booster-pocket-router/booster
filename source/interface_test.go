@@ -16,3 +16,36 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 package source_test
+
+import (
+	"net"
+	"testing"
+
+	"github.com/booster-proj/booster/source"
+)
+
+func TestFollow(t *testing.T) {
+	conn0, _ := net.Pipe()
+
+	iti0 := &source.Interface{}
+
+	l := iti0.Len()
+	if l != 0 {
+		t.Fatalf("Unexpected Len: wanted 0, found %d", l)
+	}
+
+	_ = iti0.Follow(conn0)
+
+	l = iti0.Len()
+	if l != 1 {
+		t.Fatalf("Unexpected Len: wanted 1, found %d", l)
+	}
+
+	if err := iti0.Close(); err != nil {
+		t.Fatal(err)
+	}
+	l = iti0.Len()
+	if l != 0 {
+		t.Fatalf("Unexpected Len: wanted 0, found %d", l)
+	}
+}
