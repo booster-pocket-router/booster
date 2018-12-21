@@ -1,7 +1,7 @@
 # my global config
 global:
-  scrape_interval:     5s
-  evaluation_interval: 30s
+  scrape_interval:     3s
+  evaluation_interval: 10s
   # scrape_timeout is set to the global default (10s).
 
 scrape_configs:
