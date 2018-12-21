@@ -19,7 +19,6 @@ package source
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"sync"
 )
@@ -126,9 +125,7 @@ func (c *conns) Del(conn *Conn) {
 
 	var t int
 	for i, v := range c.val {
-		fmt.Println("Checking connection")
 		if v == conn {
-			fmt.Println("Connection found!")
 			t = i
 			break
 		}
