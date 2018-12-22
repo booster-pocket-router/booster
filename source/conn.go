@@ -57,16 +57,14 @@ type Conn struct {
 
 	closed     bool   // tells wether the connection was closed.
 	OnClose    func() // Callback for close event.
-	OnDownload func(df *DataFlow)
-	OnUpload   func(df *DataFlow)
+	OnRead func(df *DataFlow)
+	OnWrite   func(df *DataFlow)
 }
 
-func WrapConn(c net.Conn) *Conn {
-	return &Conn{
-		Conn: c,
-	}
-}
-
+// Read is the io.Reader implementation of Conn. It forwards the request
+// to the underlying net.Conn, but it also records the number of bytes
+// tranferred and the duration of the transmission. It then exposes the
+// data using the OnRead callback.
 func (c *Conn) Read(p []byte) (int, error) {
 	dl := &DataFlow{Type: "read"}
 	dl.Start()
@@ -77,7 +75,7 @@ func (c *Conn) Read(p []byte) (int, error) {
 			return
 		}
 		dl.Stop(n)
-		if f := c.OnDownload; f != nil {
+		if f := c.OnRead; f != nil {
 			f(dl)
 		}
 	}()
@@ -85,6 +83,10 @@ func (c *Conn) Read(p []byte) (int, error) {
 	return n, err
 }
 
+// Write is the io.Writer implementation of Conn. It forwards the request
+// to the underlying net.Conn, but it also records the number of bytes
+// tranferred and the duration of the transmission. It then exposes the
+// data using the OnWrite callback.
 func (c *Conn) Write(p []byte) (int, error) {
 	upl := &DataFlow{Type: "write"}
 	upl.Start()
@@ -95,7 +97,7 @@ func (c *Conn) Write(p []byte) (int, error) {
 			return
 		}
 		upl.Stop(n)
-		if f := c.OnUpload; f != nil {
+		if f := c.OnWrite; f != nil {
 			f(upl)
 		}
 	}()
@@ -103,6 +105,8 @@ func (c *Conn) Write(p []byte) (int, error) {
 	return n, err
 }
 
+// Close closes the underlying net.Conn, calling the OnClose callback
+// afterwards.
 func (c *Conn) Close() error {
 	if c.closed {
 		// Multiple parts of the code might try to close the connection. Better be sure
