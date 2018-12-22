@@ -55,10 +55,10 @@ func (f *DataFlow) Stop(n int) {
 type Conn struct {
 	net.Conn
 
-	closed     bool   // tells wether the connection was closed.
-	OnClose    func() // Callback for close event.
-	OnRead func(df *DataFlow)
-	OnWrite   func(df *DataFlow)
+	closed  bool   // tells wether the connection was closed.
+	OnClose func() // Callback for close event.
+	OnRead  func(df *DataFlow)
+	OnWrite func(df *DataFlow)
 }
 
 // Read is the io.Reader implementation of Conn. It forwards the request
