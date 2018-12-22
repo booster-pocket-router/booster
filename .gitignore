@@ -19,3 +19,4 @@ data/
 .DS_Store
 *.swp
 _test/
+.prometheus.yml
