@@ -15,18 +15,24 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+// Package metrics provides what in prometheus terms is called a
+// metrics exporter.
 package metrics
 
 import (
+	"net/http"
+
 	"github.com/booster-proj/booster/source"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"net/http"
 )
 
+// Broker can be used to both capture and serve metrics.
 type Broker struct {
 }
 
+// ServeHTTP is just a wrapper around the ServeHTTP function
+// of the prohttp default Handler.
 func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	promhttp.Handler().ServeHTTP(w, r)
 }
@@ -52,6 +58,10 @@ func init() {
 	prometheus.MustRegister(receiveBytes)
 }
 
+// SendDataFlow can be used to update the metrics exported by the broker
+// about network usage, in particular upload and download bandwidth. `data`
+// Type should either be "read" or "write", referring respectively to download
+// and upload operations.
 func (b *Broker) SendDataFlow(labels map[string]string, data *source.DataFlow) {
 	switch data.Type {
 	case "read":
