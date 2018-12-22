@@ -18,51 +18,104 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package source
 
 import (
-	"fmt"
-	"math/rand"
 	"net"
 	"time"
 )
 
-// conn is a wrapper around net.Conn, with the addition of some functions
+// DataFlow collects data about a data tranmission.
+type DataFlow struct {
+	Type      string
+	StartedAt time.Time // Start of the first data transmitted.
+	EndedAt   time.Time // Time of the last byte read/written. May be overridden multiple times.
+	N         int       // Number of bytes transmitted.
+	Avg       float64   // Avg bytes/seconds.
+}
+
+// Begin sets the data flow start value.
+func (f *DataFlow) Start() {
+	f.StartedAt = time.Now()
+}
+
+// End computes the Avg, N, and End valus considering start as
+// beginning of this data transmission.
+func (f *DataFlow) Stop(n int) {
+	end := time.Now()
+	d := end.Sub(f.StartedAt)
+
+	f.N += n
+	f.EndedAt = end
+
+	avg := float64(n) / d.Seconds() // avg transmission speed of this connection.
+	f.Avg = avg
+}
+
+// Conn is a wrapper around net.Conn, with the addition of some functions
 // useful to uniquely identify the connection and receive callbacks on
 // close events.
-type conn struct {
+type Conn struct {
 	net.Conn
 
-	id      string
-	ref     string // Reference identifier, usually the parent's source identifier.
-	closed  bool
-	onClose func(string) // Callback for close event.
+	closed  bool   // tells wether the connection was closed.
+	OnClose func() // Callback for close event.
+	OnRead  func(df *DataFlow)
+	OnWrite func(df *DataFlow)
 }
 
-func newConn(c net.Conn, ref string) *conn {
-	r := rand.Int()
-	uuid := fmt.Sprintf("%s-%d", ref, r)
-	if c != nil {
-		uuid = fmt.Sprintf("%v-%v@%d-%d", c.LocalAddr(), c.RemoteAddr(), time.Now().UnixNano(), r)
-	}
+// Read is the io.Reader implementation of Conn. It forwards the request
+// to the underlying net.Conn, but it also records the number of bytes
+// tranferred and the duration of the transmission. It then exposes the
+// data using the OnRead callback.
+func (c *Conn) Read(p []byte) (int, error) {
+	dl := &DataFlow{Type: "read"}
+	dl.Start()
+	n, err := c.Conn.Read(p) // Transmit the data.
 
-	return &conn{
-		Conn: c,
-		id:   uuid,
-		ref:  ref,
-	}
+	go func() {
+		if n == 0 {
+			return
+		}
+		dl.Stop(n)
+		if f := c.OnRead; f != nil {
+			f(dl)
+		}
+	}()
+
+	return n, err
 }
 
-func (c *conn) uuid() string {
-	return c.id
+// Write is the io.Writer implementation of Conn. It forwards the request
+// to the underlying net.Conn, but it also records the number of bytes
+// tranferred and the duration of the transmission. It then exposes the
+// data using the OnWrite callback.
+func (c *Conn) Write(p []byte) (int, error) {
+	upl := &DataFlow{Type: "write"}
+	upl.Start()
+	n, err := c.Conn.Write(p) // Transmit the data.
+
+	go func() {
+		if n == 0 {
+			return
+		}
+		upl.Stop(n)
+		if f := c.OnWrite; f != nil {
+			f(upl)
+		}
+	}()
+
+	return n, err
 }
 
-func (c *conn) Close() error {
+// Close closes the underlying net.Conn, calling the OnClose callback
+// afterwards.
+func (c *Conn) Close() error {
 	if c.closed {
 		// Multiple parts of the code might try to close the connection. Better be sure
 		// that the underlying connection gets closed at some point, leave that code and
 		// avoid repetitions here.
 		return nil
 	}
-	if f := c.onClose; f != nil {
-		defer f(c.uuid())
+	if f := c.OnClose; f != nil {
+		defer f()
 	}
 
 	c.closed = true

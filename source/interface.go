@@ -19,14 +19,20 @@ package source
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"sync"
-
-	"upspin.io/log"
 )
 
+// DialHook describes the function used to notify about
+// dial errors.
 type DialHook func(ref, network, address string, err error)
+
+// MetricsBroker is the entity used to send data tranmission
+// information to an entity that is supposed to persist or
+// handle the data accordingly.
+type MetricsBroker interface {
+	SendDataFlow(labels map[string]string, data *DataFlow)
+}
 
 // Interface is a wrapper around net.Interface and
 // implements the core.Source interface, i.e. is it
@@ -39,16 +45,32 @@ type Interface struct {
 	// dialer is not able to create a network connection.
 	OnDialErr DialHook
 
-	conns struct {
+	metrics struct {
 		sync.Mutex
-		val map[string]*conn
+		broker MetricsBroker
 	}
+
+	conns *conns
 }
 
+// SetMetricsBroker sets br as the default MetricsBroker of interface
+// `i`. It is safe to use by multiple goroutines.
+func (i *Interface) SetMetricsBroker(br MetricsBroker) {
+	i.metrics.Lock()
+	defer i.metrics.Unlock()
+
+	i.metrics.broker = br
+}
+
+// Name implements the core.Source interface.
 func (i *Interface) Name() string {
 	return i.ifi.Name
 }
 
+// DialContext dials a connection of type `network` to `address`. If an error is
+// encoutered, it is both returned and logged using the OnDialErr function, if available.
+// `Follow` is called is called on the net.Conn before returning it.
+// This function dials the connection using the interface's actual device as mean.
 func (i *Interface) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	// Implementations of the `dialContext` function can be found
 	// in the {darwin, linux, windows}_dial.go files.
@@ -60,55 +82,58 @@ func (i *Interface) DialContext(ctx context.Context, network, address string) (n
 		return nil, err
 	}
 
-	// Follow the new connection if possible
-	conn, err = i.Follow(conn)
-	if err != nil {
-		log.Error.Println(err)
-	}
-
-	return conn, nil
+	return i.Follow(conn), nil
 }
 
-// Follow adds conn to the list of connections that the source is handling.
-// The connection is left intact even in case of error, in which case the
-// connection is simply ignored by the interface.
-func (i *Interface) Follow(c net.Conn) (net.Conn, error) {
-	wc := newConn(c, i.Name()) // wrapped connection
-
-	i.conns.Lock()
-	defer i.conns.Unlock()
-
-	if i.conns.val == nil {
-		i.conns.val = make(map[string]*conn)
+// Follow wraps the net.Conn around a Conn type, and keeps track of its
+// callbacks, sending the metrics collected with the OnRead and OnWrite
+// hooks.
+// The connection is added to a set of followed connections, allowing
+// the interface to perform operations on the entire list of open
+// connections. The connection is removed from such list when the conn's
+// OnClose function is called.
+func (i *Interface) Follow(conn net.Conn) net.Conn {
+	wconn := &Conn{Conn: conn}
+	wconn.OnClose = func() {
+		i.conns.Del(wconn)
+	}
+	wconn.OnRead = func(data *DataFlow) {
+		i.SendMetrics(map[string]string{
+			"source": i.Name(),
+			"target": conn.RemoteAddr().String(),
+		}, data)
+	}
+	wconn.OnWrite = func(data *DataFlow) {
+		i.SendMetrics(map[string]string{
+			"source": i.Name(),
+			"target": conn.RemoteAddr().String(),
+		}, data)
+	}
+	if i.conns == nil {
+		i.conns = &conns{}
 	}
 
-	if _, ok := i.conns.val[wc.uuid()]; ok {
-		// Another connection with the same identifier as this one is already in
-		// process. The connection identifiers are supposed to be unique, so this
-		// means that we'll not be able to follow this connection.
-		return c, fmt.Errorf("DialContext: discarding connection (id: %s) because source (%s) has a connection in process with the same identifier", wc.uuid(), i.Name())
-	}
+	i.conns.Add(wconn)
 
-	wc.onClose = func(id string) {
-		// Be careful with race condition with the Close funtion here.
-		i.conns.Lock()
-		delete(i.conns.val, id)
-		i.conns.Unlock()
-	}
-	i.conns.val[wc.uuid()] = wc
-
-	return wc, nil
+	return wconn
 }
 
+// SendMetrics sends the data using the Interface's MetricsBroker.
+// It is safe to use by multiple goroutines.
+func (i *Interface) SendMetrics(labels map[string]string, data *DataFlow) {
+	if i.metrics.broker == nil {
+		return
+	}
+
+	i.metrics.Lock()
+	defer i.metrics.Unlock()
+
+	i.metrics.broker.SendDataFlow(labels, data)
+}
+
+// Close closes all open connections.
 func (i *Interface) Close() error {
-	i.conns.Lock()
-	for _, v := range i.conns.val {
-		// Call close on each connection, but make the code run
-		// after this loop as ended.
-		defer v.Close()
-
-	}
-	i.conns.Unlock()
+	i.conns.Close()
 
 	return nil
 }
@@ -121,14 +146,59 @@ func (i *Interface) String() string {
 	return i.Name()
 }
 
-// Len returns the size
+// Len returns the number of open connections.
 func (i *Interface) Len() int {
-	i.conns.Lock()
-	defer i.conns.Unlock()
-
-	if i.conns.val == nil {
+	if i.conns == nil {
 		return 0
 	}
 
-	return len(i.conns.val)
+	return i.conns.Len()
+}
+
+type conns struct {
+	sync.Mutex
+	val []*Conn
+}
+
+func (c *conns) Add(conn *Conn) {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.val == nil {
+		c.val = make([]*Conn, 0, 10)
+	}
+	c.val = append(c.val, conn)
+}
+
+func (c *conns) Close() {
+	c.Lock()
+	for _, v := range c.val {
+		// Call close on the connetion after Unlock to
+		// avoid deadlocks.
+		defer v.Close()
+	}
+	c.Unlock()
+}
+
+func (c *conns) Del(conn *Conn) {
+	c.Lock()
+	defer c.Unlock()
+
+	var t int
+	for i, v := range c.val {
+		if v == conn {
+			t = i
+			break
+		}
+	}
+
+	copy(c.val[t:], c.val[t+1:])
+	c.val[len(c.val)-1] = nil
+	c.val = c.val[:len(c.val)-1]
+}
+func (c *conns) Len() int {
+	c.Lock()
+	defer c.Unlock()
+
+	return len(c.val)
 }

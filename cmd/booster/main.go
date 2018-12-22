@@ -29,6 +29,7 @@ import (
 
 	"github.com/booster-proj/booster"
 	"github.com/booster-proj/booster/core"
+	"github.com/booster-proj/booster/metrics"
 	"github.com/booster-proj/booster/remote"
 	"github.com/booster-proj/booster/source"
 	"github.com/booster-proj/booster/store"
@@ -89,13 +90,18 @@ func main() {
 	}
 
 	b := new(core.Balancer)
+	mb := new(metrics.Broker)
 	rs := store.New(b)
-	l := source.NewListener(rs)
+	l := source.NewListener(source.Config{
+		Store:         rs,
+		MetricsBroker: mb,
+	})
 	d := booster.New(b)
 
 	router := remote.NewRouter()
 	router.Config = config
 	router.Store = rs
+	router.MetricsProvider = mb
 	router.SetupRoutes()
 	r := remote.New(router)
 

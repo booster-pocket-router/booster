@@ -34,9 +34,8 @@ func TestFollow(t *testing.T) {
 		t.Fatalf("Unexpected Len: wanted 0, found %d", l)
 	}
 
-	if _, err := iti0.Follow(conn0); err != nil {
-		t.Fatal(err)
-	}
+	_ = iti0.Follow(conn0)
+
 	l = iti0.Len()
 	if l != 1 {
 		t.Fatalf("Unexpected Len: wanted 1, found %d", l)
