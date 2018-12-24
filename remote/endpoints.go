@@ -127,5 +127,6 @@ func metricsForwardHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
 	io.Copy(w, resp.Body)
 }
