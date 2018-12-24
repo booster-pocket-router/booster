@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 
@@ -108,15 +107,9 @@ func makeBlockHandler(s *store.SourceStore) func(w http.ResponseWriter, r *http.
 }
 
 func metricsForwardHandler(w http.ResponseWriter, r *http.Request) {
-	oHost, _, err := net.SplitHostPort(r.Host)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
-		return
-	}
-
 	URL, _ := url.Parse(r.URL.String())
 	URL.Scheme = "http"
-	URL.Host = fmt.Sprintf("%s:%d", oHost, StaticConf.PromPort)
+	URL.Host = fmt.Sprintf("localhost:%d", StaticConf.PromPort)
 	URL.Path = "api/v1/query"
 
 	req, err := http.NewRequest(r.Method, URL.String(), r.Body)
