@@ -20,15 +20,25 @@ package remote
 import (
 	"net/http"
 
-	"github.com/booster-proj/booster"
 	"github.com/booster-proj/booster/store"
 	"github.com/gorilla/mux"
 )
 
+type Config struct {
+	Version   string `json:"version"`
+	Commit    string `json:"commit"`
+	BuildTime string `json:"build_time"`
+
+	ProxyPort  int    `json:"proxy_port"`
+	ProxyProto string `json:"proxy_proto"`
+	PromPort   int    `json:"-"`
+}
+
+var StaticConf Config = Config{}
+
 type Router struct {
 	r *mux.Router
 
-	Config          booster.Config
 	Store           *store.SourceStore
 	MetricsProvider http.Handler
 }
@@ -43,7 +53,7 @@ func NewRouter() *Router {
 // properly.
 func (r *Router) SetupRoutes() {
 	router := r.r
-	router.HandleFunc("/health.json", makeHealthCheckHandler(r.Config))
+	router.HandleFunc("/health.json", healthCheckHandler)
 	if store := r.Store; store != nil {
 		router.HandleFunc("/sources.json", makeSourcesHandler(store))
 		router.HandleFunc("/sources/{name}/block.json", makeBlockHandler(store)).Methods("POST", "DELETE")
@@ -52,6 +62,7 @@ func (r *Router) SetupRoutes() {
 	if handler := r.MetricsProvider; handler != nil {
 		router.Handle("/metrics", handler)
 	}
+	router.HandleFunc("/metrics.json", metricsForwardHandler)
 	router.Use(loggingMiddleware)
 }
 

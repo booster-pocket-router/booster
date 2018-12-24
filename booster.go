@@ -25,15 +25,6 @@ import (
 	"upspin.io/log"
 )
 
-type Config struct {
-	Version   string `json:"version"`
-	Commit    string `json:"commit"`
-	BuildTime string `json:"build_time"`
-
-	ProxyPort  int    `json:"proxy_port"`
-	ProxyProto string `json:"proxy_proto"`
-}
-
 // New returns an instance of a booster dialer.
 func New(b *core.Balancer) core.Dialer {
 	return &dialer{b}

@@ -19,28 +19,28 @@ package remote
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 
-	"github.com/booster-proj/booster"
 	"github.com/booster-proj/booster/store"
 	"github.com/gorilla/mux"
 	"upspin.io/log"
 )
 
-func makeHealthCheckHandler(config booster.Config) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "application/json")
+func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
 
-		json.NewEncoder(w).Encode(struct {
-			Alive bool `json:"alive"`
-			booster.Config
-		}{
-			Alive:  true,
-			Config: config,
-		})
-	}
+	json.NewEncoder(w).Encode(struct {
+		Alive bool `json:"alive"`
+		Config
+	}{
+		Alive:  true,
+		Config: StaticConf,
+	})
 }
 
 func makeSourcesHandler(s *store.SourceStore) func(w http.ResponseWriter, r *http.Request) {
@@ -83,6 +83,8 @@ func makeBlockHandler(s *store.SourceStore) func(w http.ResponseWriter, r *http.
 			},
 		}
 
+		w.Header().Set("Content-Type", "application/json")
+
 		if r.Method == "POST" {
 			// Add a reason if available in the body.
 			var payload struct {
@@ -103,4 +105,34 @@ func makeBlockHandler(s *store.SourceStore) func(w http.ResponseWriter, r *http.
 
 		w.WriteHeader(http.StatusOK)
 	}
+}
+
+func metricsForwardHandler(w http.ResponseWriter, r *http.Request) {
+	oHost, _, err := net.SplitHostPort(r.Host)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+
+	URL, _ := url.Parse(r.URL.String())
+	URL.Scheme = "http"
+	URL.Host = fmt.Sprintf("%s:%d", oHost, StaticConf.PromPort)
+	URL.Path = "api/v1/query"
+
+	req, err := http.NewRequest(r.Method, URL.String(), r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+
+	req.Header = r.Header
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	io.Copy(w, resp.Body)
 }

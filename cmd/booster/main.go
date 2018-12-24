@@ -55,7 +55,8 @@ var (
 	rawProto = flag.String("proto", "socks5", "Proxy protocol used. Available protocols: http, socks5.")
 
 	// API configuration
-	apiPort = flag.Int("api-port", 7764, "API server listening port")
+	apiPort  = flag.Int("api-port", 7764, "API server listening port")
+	promPort = flag.Int("prometheus-port", 9090, "Port of a local prometheus server. Used for forwarding")
 
 	// Log configuration
 	verbose     = flag.Bool("verbose", false, "If set, makes the logger print also debug messages")
@@ -81,12 +82,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	config := booster.Config{
+	remote.StaticConf = remote.Config{
 		Version:    version,
 		Commit:     commit,
 		BuildTime:  buildTime,
 		ProxyPort:  *pPort,
 		ProxyProto: *rawProto,
+		PromPort:   *promPort,
 	}
 
 	b := new(core.Balancer)
@@ -99,7 +101,6 @@ func main() {
 	d := booster.New(b)
 
 	router := remote.NewRouter()
-	router.Config = config
 	router.Store = rs
 	router.MetricsProvider = mb
 	router.SetupRoutes()
