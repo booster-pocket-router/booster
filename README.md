@@ -53,16 +53,20 @@ GET /policies.json
 list of active policies
 ```
 ```
-POST /sources/{name}/block
+POST /sources/{name}/block.json
 activate a block policy on source with .Name == {name}
 ```
 ```
-DELETE /sources/{name}/block
+DELETE /sources/{name}/block.json
 remove block policy on source with .Name == {name}
 ```
 ```
 GET /metrics.json
 forwards the request to a local prometheus api/v1/query endpoint, preserving
 headers, query parameters and request body.
+```
+```
+GET /metrics
+list the metrics exposed by the server using prometheus export encoding.
 ```
 
