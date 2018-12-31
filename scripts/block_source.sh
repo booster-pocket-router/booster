@@ -2,6 +2,7 @@
 
 METHOD="$1"
 NAME="$2"
+HOST="http://booster.local:7764"
 
 if [ -z "$METHOD" ]; then
 	echo "You have to pass the name of the method that you want to execute for this to work out:"
@@ -17,4 +18,4 @@ if [ -z "$NAME" ]; then
 	exit 0
 fi
 
-curl -H "Content-Type: application/json" -d "{\"reason\": \"blocked by $0 script\"}" -X "$METHOD" http://localhost:7764/sources/"$NAME"/block
+curl -H "Content-Type: application/json" -d "{\"reason\": \"blocked by $0 script\"}" -X "$METHOD" "$HOST"/sources/"$NAME"/block.json
