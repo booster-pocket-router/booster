@@ -27,10 +27,10 @@ import (
 // dial errors.
 type DialHook func(ref, network, address string, err error)
 
-// MetricsBroker is the entity used to send data tranmission
+// MetricsExporter is the entity used to send data tranmission
 // information to an entity that is supposed to persist or
 // handle the data accordingly.
-type MetricsBroker interface {
+type MetricsExporter interface {
 	SendDataFlow(labels map[string]string, data *DataFlow)
 }
 
@@ -47,15 +47,15 @@ type Interface struct {
 
 	metrics struct {
 		sync.Mutex
-		broker MetricsBroker
+		broker MetricsExporter
 	}
 
 	conns *conns
 }
 
-// SetMetricsBroker sets br as the default MetricsBroker of interface
+// SetMetricsExporter sets br as the default MetricsExporter of interface
 // `i`. It is safe to use by multiple goroutines.
-func (i *Interface) SetMetricsBroker(br MetricsBroker) {
+func (i *Interface) SetMetricsExporter(br MetricsExporter) {
 	i.metrics.Lock()
 	defer i.metrics.Unlock()
 
@@ -118,7 +118,7 @@ func (i *Interface) Follow(conn net.Conn) net.Conn {
 	return wconn
 }
 
-// SendMetrics sends the data using the Interface's MetricsBroker.
+// SendMetrics sends the data using the Interface's MetricsExporter.
 // It is safe to use by multiple goroutines.
 func (i *Interface) SendMetrics(labels map[string]string, data *DataFlow) {
 	if i.metrics.broker == nil {

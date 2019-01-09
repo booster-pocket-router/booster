@@ -58,9 +58,9 @@ var PollInterval = time.Second * 3
 var PollTimeout = time.Second * 5
 
 type Config struct {
-	Store         Store
-	Provider      Provider
-	MetricsBroker MetricsBroker
+	Store           Store
+	Provider        Provider
+	MetricsExporter MetricsExporter
 }
 
 // NewListener creates a new Listener with the provided storage, using
@@ -71,7 +71,7 @@ func NewListener(c Config) *Listener {
 	var p Provider = &MergedProvider{
 		ControlInterface: func(ifi *Interface) {
 			ifi.OnDialErr = hooker.HandleDialErr
-			ifi.SetMetricsBroker(c.MetricsBroker)
+			ifi.SetMetricsExporter(c.MetricsExporter)
 		},
 	}
 	if c.Provider != nil {

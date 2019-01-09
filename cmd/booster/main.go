@@ -92,17 +92,17 @@ func main() {
 	}
 
 	b := new(core.Balancer)
-	mb := new(metrics.Broker)
+	exp := new(metrics.Exporter)
 	rs := store.New(b)
 	l := source.NewListener(source.Config{
-		Store:         rs,
-		MetricsBroker: mb,
+		Store:           rs,
+		MetricsExporter: exp,
 	})
 	d := booster.New(b)
 
 	router := remote.NewRouter()
 	router.Store = rs
-	router.MetricsProvider = mb
+	router.MetricsProvider = exp
 	router.SetupRoutes()
 	r := remote.New(router)
 

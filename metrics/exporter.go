@@ -27,13 +27,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Broker can be used to both capture and serve metrics.
-type Broker struct {
+// Exporter can be used to both capture and serve metrics.
+type Exporter struct {
 }
 
 // ServeHTTP is just a wrapper around the ServeHTTP function
 // of the prohttp default Handler.
-func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (b *Exporter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	promhttp.Handler().ServeHTTP(w, r)
 }
 
@@ -62,7 +62,7 @@ func init() {
 // about network usage, in particular upload and download bandwidth. `data`
 // Type should either be "read" or "write", referring respectively to download
 // and upload operations.
-func (b *Broker) SendDataFlow(labels map[string]string, data *source.DataFlow) {
+func (b *Exporter) SendDataFlow(labels map[string]string, data *source.DataFlow) {
 	switch data.Type {
 	case "read":
 		receiveBytes.With(prometheus.Labels(labels)).Add(float64(data.N))
