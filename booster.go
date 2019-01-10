@@ -8,8 +8,7 @@ License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
 
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
@@ -20,32 +19,54 @@ package booster
 import (
 	"context"
 	"net"
+	"sync"
 
 	"github.com/booster-proj/booster/core"
 	"upspin.io/log"
 )
 
 // New returns an instance of a booster dialer.
-func New(b *core.Balancer) core.Dialer {
-	return &dialer{b}
+func New(b *core.Balancer) *Dialer {
+	return &Dialer{b: b}
 }
 
-type dialer struct {
-	*core.Balancer
+// MetricsExporter is an inteface around the IncSelectedSource function,
+// which is used to collect a metric when a source is selected for use.
+type MetricsExporter interface {
+	IncSelectedSource(labels map[string]string)
 }
 
-func (d *dialer) DialContext(ctx context.Context, network, address string) (conn net.Conn, err error) {
+// Dialer is a core.Dialer implementation, which uses a core.Balancer
+// instance to to retrieve a source to use when it comes to dial a network
+// connection.
+type Dialer struct {
+	b *core.Balancer
+
+	metrics struct {
+		sync.Mutex
+		exporter MetricsExporter
+	}
+}
+
+// DialContext dials a connection using `network` to `address`. The connection returned
+// is dialed through a specific network interface, which is chosen using the dialer's
+// interal balancer provided. If it fails to create a connection using a source, it
+// tries to dial it using another source, until source exhaustion. It that case,
+// only the last error received is returned.
+func (d *Dialer) DialContext(ctx context.Context, network, address string) (conn net.Conn, err error) {
 	bl := make([]core.Source, 0, d.Len()) // blacklisted sources
 
 	// If the dialing fails, keep on trying with the other sources until exaustion.
 	for i := 0; len(bl) < d.Len(); i++ {
 		var src core.Source
-		src, err = d.Get(ctx, bl...)
+		src, err = d.b.Get(ctx, bl...)
 		if err != nil {
 			// Fail directly if the balancer returns an error, as
 			// we do not have any source to use.
 			return
 		}
+
+		d.sendMetrics(src.Name(), address)
 
 		log.Debug.Printf("DialContext: Attempt #%d to connect to %v (source %v)", i, address, src.Name())
 
@@ -62,4 +83,31 @@ func (d *dialer) DialContext(ctx context.Context, network, address string) (conn
 	}
 
 	return
+}
+
+// Len returns the number of sources that the dialer as at it's disposal.
+func (d *Dialer) Len() int {
+	return d.b.Len()
+}
+
+// SetMetricsExporter makes the receiver use exp as metrics exporter.
+func (d *Dialer) SetMetricsExporter(exp MetricsExporter) {
+	d.metrics.Lock()
+	defer d.metrics.Unlock()
+
+	d.metrics.exporter = exp
+}
+
+func (d *Dialer) sendMetrics(name, target string) {
+	if d.metrics.exporter == nil {
+		return
+	}
+
+	d.metrics.Lock()
+	defer d.metrics.Unlock()
+
+	d.metrics.exporter.IncSelectedSource(map[string]string{
+		"source": name,
+		"target": target,
+	})
 }
