@@ -47,19 +47,19 @@ type Interface struct {
 
 	metrics struct {
 		sync.Mutex
-		broker MetricsExporter
+		exporter MetricsExporter
 	}
 
 	conns *conns
 }
 
-// SetMetricsExporter sets br as the default MetricsExporter of interface
+// SetMetricsExporter sets exp as the default MetricsExporter of interface
 // `i`. It is safe to use by multiple goroutines.
-func (i *Interface) SetMetricsExporter(br MetricsExporter) {
+func (i *Interface) SetMetricsExporter(exp MetricsExporter) {
 	i.metrics.Lock()
 	defer i.metrics.Unlock()
 
-	i.metrics.broker = br
+	i.metrics.exporter = exp
 }
 
 // Name implements the core.Source interface.
@@ -121,14 +121,14 @@ func (i *Interface) Follow(conn net.Conn) net.Conn {
 // SendMetrics sends the data using the Interface's MetricsExporter.
 // It is safe to use by multiple goroutines.
 func (i *Interface) SendMetrics(labels map[string]string, data *DataFlow) {
-	if i.metrics.broker == nil {
+	if i.metrics.exporter == nil {
 		return
 	}
 
 	i.metrics.Lock()
 	defer i.metrics.Unlock()
 
-	i.metrics.broker.SendDataFlow(labels, data)
+	i.metrics.exporter.SendDataFlow(labels, data)
 }
 
 // Close closes all open connections.

@@ -27,16 +27,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Exporter can be used to both capture and serve metrics.
-type Exporter struct {
-}
-
-// ServeHTTP is just a wrapper around the ServeHTTP function
-// of the prohttp default Handler.
-func (b *Exporter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	promhttp.Handler().ServeHTTP(w, r)
-}
-
 const namespace = "booster"
 
 var (
@@ -51,18 +41,35 @@ var (
 		Name:      "network_receive_bytes",
 		Help:      "Received bytes for network source",
 	}, []string{"source", "target"})
+
+	selectSource = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Name:      "select_source_total",
+		Help:      "Number of times a source was chosen",
+	}, []string{"source", "target"})
 )
 
 func init() {
 	prometheus.MustRegister(sendBytes)
 	prometheus.MustRegister(receiveBytes)
+	prometheus.MustRegister(selectSource)
+}
+
+// Exporter can be used to both capture and serve metrics.
+type Exporter struct {
+}
+
+// ServeHTTP is just a wrapper around the ServeHTTP function
+// of the prohttp default Handler.
+func (exp *Exporter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	promhttp.Handler().ServeHTTP(w, r)
 }
 
 // SendDataFlow can be used to update the metrics exported by the broker
 // about network usage, in particular upload and download bandwidth. `data`
 // Type should either be "read" or "write", referring respectively to download
 // and upload operations.
-func (b *Exporter) SendDataFlow(labels map[string]string, data *source.DataFlow) {
+func (exp *Exporter) SendDataFlow(labels map[string]string, data *source.DataFlow) {
 	switch data.Type {
 	case "read":
 		receiveBytes.With(prometheus.Labels(labels)).Add(float64(data.N))
@@ -70,4 +77,10 @@ func (b *Exporter) SendDataFlow(labels map[string]string, data *source.DataFlow)
 		sendBytes.With(prometheus.Labels(labels)).Add(float64(data.N))
 	default:
 	}
+}
+
+// INcSelectedSource is used to update the number of times a source was
+// chosen.
+func (exp *Exporter) IncSelectedSource(labels map[string]string) {
+	selectSource.With(prometheus.Labels(labels)).Inc()
 }
