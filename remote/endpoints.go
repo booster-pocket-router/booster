@@ -23,6 +23,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"compress/gzip"
 
 	"github.com/booster-proj/booster/store"
 	"github.com/gorilla/mux"
@@ -126,7 +127,13 @@ func metricsForwardHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	gzipR, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	io.Copy(w, resp.Body)
+	io.Copy(w, gzipR)
 }
