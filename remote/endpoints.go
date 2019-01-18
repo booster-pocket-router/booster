@@ -98,12 +98,12 @@ func makeBlockHandler(s *store.SourceStore) func(w http.ResponseWriter, r *http.
 				p.Reason = payload.Reason
 			}
 			s.AddPolicy(p)
+			w.WriteHeader(http.StatusCreated)
 		} else {
 			// Only POST and DELETE are registered.
 			s.DelPolicy(p.ID)
+			w.WriteHeader(http.StatusOK)
 		}
-
-		w.WriteHeader(http.StatusOK)
 	}
 }
 
