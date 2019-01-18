@@ -212,7 +212,9 @@ func TestPut(t *testing.T) {
 		Issuer: "Test",
 		Code:   500,
 	}
-	s.AddPolicy(p)
+	if err := s.AddPolicy(p); err != nil {
+		t.Fatalf("Unexpected error while adding policy %v: %v", p, err)
+	}
 
 	s1 := &mock{id: "bar"}
 	s.Put(s1)
@@ -220,6 +222,11 @@ func TestPut(t *testing.T) {
 	ss = s.GetProtected()
 	if len(ss) != 1 {
 		t.Fatalf("Unexpected accepted sources: wanted len == 1, found: %+v", ss)
+	}
+
+	// Ensure that it is not possible to add the same policy multiple times
+	if err := s.AddPolicy(p); err == nil {
+		t.Fatalf("We were allowed to add the same policy twice, but we shouldn't")
 	}
 
 	// If the policy is removed, the source should be eventually integrated

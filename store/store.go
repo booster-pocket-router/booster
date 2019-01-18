@@ -17,8 +17,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package store
 
 import (
-	"github.com/booster-proj/booster/core"
+	"fmt"
 	"sync"
+	"github.com/booster-proj/booster/core"
 )
 
 // Store describes an entity that is able to store,
@@ -147,13 +148,22 @@ func (ss *SourceStore) GetSourcesSnapshot() []*DummySource {
 // Add policy stores the policy and applies it also to the sources
 // stored in the protected storage, removing them from it if
 // required.
-func (ss *SourceStore) AddPolicy(p *Policy) {
+func (ss *SourceStore) AddPolicy(p *Policy) error {
 	ss.mux.Lock()
 	defer ss.mux.Unlock()
 
 	if ss.Policies == nil {
 		ss.Policies = make([]*Policy, 0, 1)
 	}
+
+	// Ensure that this is not a duplicate
+	for _, v := range ss.Policies {
+		if v.ID == p.ID {
+			return fmt.Errorf("source store: a policy with identifier %v is already present", v.ID)
+		}
+	}
+
+	// Start the integration process
 	ss.Policies = append(ss.Policies, p)
 
 	// Now apply the new policy to the items that
@@ -184,6 +194,8 @@ func (ss *SourceStore) AddPolicy(p *Policy) {
 			Policy:   p,
 		})
 	}
+
+	return nil
 }
 
 // DelPolicy removes the policy with identifier id from the storage.
