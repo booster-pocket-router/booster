@@ -18,8 +18,9 @@ package store
 
 import (
 	"fmt"
-	"github.com/booster-proj/booster/core"
 	"sync"
+
+	"github.com/booster-proj/booster/core"
 )
 
 // Store describes an entity that is able to store,
