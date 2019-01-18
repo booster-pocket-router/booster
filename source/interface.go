@@ -136,10 +136,6 @@ func (i *Interface) Close() error {
 	return nil
 }
 
-func (i *Interface) Value(key interface{}) interface{} {
-	return nil
-}
-
 func (i *Interface) String() string {
 	return i.Name()
 }

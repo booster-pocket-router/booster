@@ -48,10 +48,6 @@ func (s *mock) Close() error {
 	return nil
 }
 
-func (s *mock) Value(key interface{}) interface{} {
-	return nil
-}
-
 func (s *mock) String() string {
 	return s.Name()
 }

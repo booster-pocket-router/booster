@@ -41,9 +41,6 @@ type Source interface {
 
 	// Tells the receiver to cleanup and close all connections.
 	Close() error
-
-	// Value returns the value associated with key or nil if none.
-	Value(interface{}) interface{}
 }
 
 // Strategy chooses a source from a ring of sources.

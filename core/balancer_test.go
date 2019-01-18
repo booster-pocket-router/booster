@@ -48,10 +48,6 @@ func (s *mock) Close() error {
 	return nil
 }
 
-func (s *mock) Value(key interface{}) interface{} {
-	return nil
-}
-
 // Just test that Len does not panic.
 func TestLen(t *testing.T) {
 	b := &core.Balancer{}
