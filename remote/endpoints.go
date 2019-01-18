@@ -18,12 +18,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package remote
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"compress/gzip"
 
 	"github.com/booster-proj/booster/store"
 	"github.com/gorilla/mux"
