@@ -108,6 +108,12 @@ func (s *storage) Len() int {
 	return len(s.data)
 }
 
+func (s *storage) Do(f func(core.Source)) {
+	for _, v := range s.data {
+		f(v)
+	}
+}
+
 type mockProvider struct {
 	sources []*mock
 }

@@ -32,7 +32,8 @@ import (
 type Store interface {
 	Put(...core.Source)
 	Del(...core.Source)
-	GetActive() []core.Source
+	Len() int
+	Do(func(core.Source))
 }
 
 // Provider describes a service that is capable of providing sources
@@ -157,6 +158,16 @@ func (l *Listener) Run(ctx context.Context) error {
 	}
 }
 
+// StoredSources returns the list of sources that are already inside
+// the store.
+func (l *Listener) StoredSources() []core.Source {
+	acc := make([]core.Source, 0, l.s.Len())
+	l.s.Do(func(src core.Source) {
+		acc = append(acc, src)
+	})
+	return acc
+}
+
 // Diff returns respectively the list of items that has to be added and removed
 // from "old" to create the same list as "cur".
 func Diff(old, cur []core.Source) (add []core.Source, remove []core.Source) {
@@ -196,7 +207,7 @@ func (l *Listener) Poll(ctx context.Context) error {
 		return err
 	}
 
-	old := l.s.GetActive()
+	old := l.StoredSources()
 
 	// Find difference from old to cur.
 	add, remove := Diff(old, cur)
@@ -221,7 +232,7 @@ func (l *Listener) Poll(ctx context.Context) error {
 	}
 
 	// Eventually remove the sources that contain hook errors.
-	old = l.s.GetActive() // as the list has been updated before the last call.
+	old = l.StoredSources() // as the list has been updated before the last call.
 	acc := make([]core.Source, 0, len(old))
 	for _, src := range old {
 		if err = l.h.HookErr(src.ID()); err != nil {

@@ -34,14 +34,14 @@ func TestAddPolicy(t *testing.T) {
 	}
 
 	// Now add a policy.
-	s.AddPolicy(&store.Policy{
-		ID: "block_foo",
+	s.AppendPolicy(&store.Policy{
+		ID: "foo",
 		Accept: func(name, target string) bool {
-			return name != "foo"
+			return false
 		},
-		Reason: "Some reason",
-		Issuer: "Test",
-		Code:   500,
+		Reason: "undefined",
+		Issuer: "testing.T",
+		Code:   -1,
 	})
 	if len(s.Policies) != 1 {
 		t.Fatalf("Unexpected policies count: wanted 1, found %+v", s.Policies)
@@ -52,171 +52,25 @@ func TestDelPolicy(t *testing.T) {
 	s := store.New(&storage{
 		data: []core.Source{},
 	})
-	s.Policies = append(s.Policies, &store.Policy{
-		ID: "block_foo",
+	s.AppendPolicy(&store.Policy{
+		ID: "foo",
 		Accept: func(name, target string) bool {
-			return name != "foo"
+			return false
 		},
-		Reason: "Some reason",
-		Issuer: "Test",
-		Code:   500,
+		Reason: "undefined",
+		Issuer: "testing.T",
+		Code:   -1,
 	})
 	if len(s.Policies) != 1 {
 		t.Fatalf("Unexpected policies count: wanted 1, found %+v", s.Policies)
 	}
 
 	// Now remove the policy.
-	s.DelPolicy("block_foo")
+	s.DelPolicy("foo")
 	if len(s.Policies) != 0 {
 		t.Fatalf("Unexpected policies count: wanted 0, found %+v", s.Policies)
 	}
 
-}
-
-func TestAddDelPolicy_withSideEffects(t *testing.T) {
-	// Let's start with a protected storage that contains a
-	// source.
-	src := &mock{id: "foo"}
-	storage := &storage{
-		data: []core.Source{src},
-	}
-
-	// Create the store.
-	s := store.New(storage)
-
-	// Query the store and check that it returns our source
-	// (it should not be blocked).
-	ss := s.GetProtected()
-	if len(ss) != 1 {
-		t.Fatalf("Unexpected accepted sources: wanted len == 1, found: %+v", ss)
-	}
-
-	// Now add a policy that should block our source, and
-	// see the results.
-	p := &store.Policy{
-		ID: "block_foo",
-		Accept: func(name, target string) bool {
-			return name != "foo"
-		},
-		Reason: "Some reason",
-		Issuer: "Test",
-		Code:   500,
-	}
-	s.AddPolicy(p)
-
-	// Now check if the source is actually blocked.
-	ss = s.GetProtected()
-	if len(ss) != 0 {
-		t.Fatalf("Unexpected accepted sources: wanted len == 0, found %+v", ss)
-	}
-
-	// Remove the policies and check the result again.
-	s.DelPolicy(p.ID)
-	ss = s.GetProtected()
-	if len(ss) != 1 {
-		t.Fatalf("Unexpected accepted sources: wanted len == 1, found: %+v", ss)
-	}
-}
-
-func TestPut(t *testing.T) {
-	// Build the protected storage.
-	storage := &storage{
-		data: []core.Source{},
-	}
-	// Create the store
-	s := store.New(storage)
-
-	// Test that it is actually possible to Put a source.
-	s0 := &mock{id: "foo"}
-	s.Put(s0)
-
-	ss := s.GetProtected()
-	if len(ss) != 1 {
-		t.Fatalf("Unexpected accepted sources: wanted len == 1, found: %+v", ss)
-	}
-
-	// Now add a blocking policy and check wether we're able
-	// to Put sources or not.
-	p := &store.Policy{
-		ID: "block_bar",
-		Accept: func(name, target string) bool {
-			return name != "bar"
-		},
-		Reason: "Some reason",
-		Issuer: "Test",
-		Code:   500,
-	}
-	if err := s.AddPolicy(p); err != nil {
-		t.Fatalf("Unexpected error while adding policy %v: %v", p, err)
-	}
-
-	s1 := &mock{id: "bar"}
-	s.Put(s1)
-
-	ss = s.GetProtected()
-	if len(ss) != 1 {
-		t.Fatalf("Unexpected accepted sources: wanted len == 1, found: %+v", ss)
-	}
-
-	// Ensure that it is not possible to add the same policy multiple times
-	if err := s.AddPolicy(p); err == nil {
-		t.Fatalf("We were allowed to add the same policy twice, but we shouldn't")
-	}
-
-	// If the policy is removed, the source should be eventually integrated
-	// into the accepted sources.
-	s.DelPolicy(p.ID)
-
-	ss = s.GetProtected()
-	if len(ss) != 2 {
-		t.Fatalf("Unexpected accepted sources: wanted len == 2, found: %+v", ss)
-	}
-}
-
-func TestDel(t *testing.T) {
-	s0 := &mock{id: "foo"}
-	s1 := &mock{id: "bar"}
-
-	// Build the protected storage with a source in it.
-	storage := &storage{
-		data: []core.Source{s0},
-	}
-	// Create the store.
-	s := store.New(storage)
-
-	// Now add a blocking policy and put a source into the under
-	// policy limbo.
-	p := &store.Policy{
-		ID: "block_bar",
-		Accept: func(name, target string) bool {
-			return name != "bar"
-		},
-		Reason: "Some reason",
-		Issuer: "Test",
-		Code:   500,
-	}
-	s.AddPolicy(p)
-	s.Put(s1) // blocked by the policy
-
-	ss := s.GetProtected()
-	if len(ss) != 1 {
-		t.Fatalf("Unexpected accepted sources: wanted len == 1, found: %+v", ss)
-	}
-
-	// Now delete without removing the policy (otherwise s1 will
-	// be inserted into the same storage as s0)
-	s.Del(s0, s1)
-	ss = s.GetProtected()
-	if len(ss) != 0 {
-		t.Fatalf("Unexpected accepted sources: wanted len == 0, found: %+v", ss)
-	}
-
-	// Remove the policy: no sources should added to the storage.
-	s.DelPolicy(p.ID)
-	ss = s.GetProtected()
-	if len(ss) != 0 {
-		t.Fatalf("Unexpected accepted sources: wanted len == 0, found: %+v", ss)
-	}
 }
 
 func TestGetPoliciesSnapshot(t *testing.T) {
@@ -229,14 +83,14 @@ func TestGetPoliciesSnapshot(t *testing.T) {
 	}
 
 	// Now add a policy.
-	s.AddPolicy(&store.Policy{
-		ID: "block_foo",
+	s.AppendPolicy(&store.Policy{
+		ID: "foo",
 		Accept: func(name, target string) bool {
-			return name != "foo"
+			return false
 		},
-		Reason: "Some reason",
-		Issuer: "Test",
-		Code:   500,
+		Reason: "undefined",
+		Issuer: "testing.T",
+		Code:   -1,
 	})
 	pl = s.GetPoliciesSnapshot()
 	if len(pl) != 1 {
