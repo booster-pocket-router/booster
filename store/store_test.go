@@ -86,6 +86,24 @@ func (s *storage) Do(f func(core.Source)) {
 	}
 }
 
+func (s *storage) Get(ctx context.Context, blacklisted ...core.Source) (core.Source, error) {
+	isIn := func(s core.Source) bool {
+		for _, v := range blacklisted {
+			if v.ID() == s.ID() {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, v := range s.data {
+		if !isIn(v) {
+			return v, nil
+		}
+	}
+	return nil, fmt.Errorf("storage: not suitable source found")
+}
+
 func TestAddPolicy(t *testing.T) {
 	s := store.New(&storage{
 		data: []core.Source{},

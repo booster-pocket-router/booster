@@ -24,8 +24,13 @@ import (
 	"upspin.io/log"
 )
 
+type Balancer interface {
+	Get(context.Context, ...core.Source) (core.Source, error)
+	Len() int
+}
+
 // New returns an instance of a booster dialer.
-func New(b *core.Balancer) *Dialer {
+func New(b Balancer) *Dialer {
 	return &Dialer{b: b}
 }
 
@@ -39,7 +44,7 @@ type MetricsExporter interface {
 // instance to to retrieve a source to use when it comes to dial a network
 // connection.
 type Dialer struct {
-	b *core.Balancer
+	b Balancer
 
 	metrics struct {
 		sync.Mutex

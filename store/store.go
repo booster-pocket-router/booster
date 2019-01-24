@@ -18,6 +18,7 @@ package store
 import (
 	"fmt"
 	"sync"
+	"context"
 
 	"github.com/booster-proj/booster/core"
 )
@@ -27,6 +28,7 @@ import (
 type Store interface {
 	Put(...core.Source)
 	Del(...core.Source)
+	Get(context.Context, ...core.Source) (core.Source, error)
 
 	Len() int
 	Do(func(core.Source))
@@ -70,7 +72,8 @@ type SourceStore struct {
 
 // A DummySource is a source which stores only the information
 // of it's parent source at copy time, but it is no longer able
-// to produce any internet connection. It should be used to show // snapshots of the current storage to other componets of the
+// to produce any internet connection. It should be used to show 
+// snapshots of the current storage to other componets of the
 // program that should not be able to break or work with the
 // original and active source.
 type DummySource struct {
@@ -80,12 +83,27 @@ type DummySource struct {
 	Blocked  bool        `json:"blocked"`
 }
 
+// New creates a New instance of SourceStore, using interally `store`
+// as the protected storage.
 func New(store Store) *SourceStore {
 	return &SourceStore{
 		protected:   store,
 		Policies:    []*Policy{},
 		underPolicy: []*DummySource{},
 	}
+}
+
+// Get is an implementation of booster.Balancer. It provides a source, avoiding
+// the ones `blacklisted`. The `blacklisted` sources are populated with the sources
+// that cannot be accepted due to policy restrictions. The source is then
+// retriven from the protected storage.
+func (ss *SourceStore) Get(ctx context.Context, blacklisted ...core.Source) (core.Source, error) {
+	return ss.protected.Get(ctx, blacklisted...)
+}
+
+// Len returns the number of sources available to the store.
+func (ss *SourceStore) Len() int {
+	return ss.protected.Len()
 }
 
 // GetAccepeted returns the list sources stored in the

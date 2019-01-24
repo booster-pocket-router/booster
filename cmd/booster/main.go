@@ -96,7 +96,7 @@ func main() {
 		Store:           rs,
 		MetricsExporter: exp,
 	})
-	d := booster.New(b)
+	d := booster.New(rs)
 	d.SetMetricsExporter(exp)
 
 	router := remote.NewRouter()
