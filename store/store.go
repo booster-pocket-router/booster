@@ -88,7 +88,48 @@ func New(store Store) *SourceStore {
 // that cannot be accepted due to policy restrictions. The source is then
 // retriven from the protected storage.
 func (ss *SourceStore) Get(ctx context.Context, target string, blacklisted ...core.Source) (core.Source, error) {
+	blacklisted = append(blacklisted, ss.MakeBlacklist(target)...)
 	return ss.protected.Get(ctx, blacklisted...)
+}
+
+// ShouldAccept takes `id` and `target`, iterates through the list of policies
+// and returns false if the two inputs are not accepted by one of them. The
+// offending policy is also returned.
+// Returns true if no policy blocks `id` and `target`.
+func (ss *SourceStore) ShouldAccept(id, target string) (bool, *Policy) {
+	ss.mux.Lock()
+	defer ss.mux.Unlock()
+
+	for _, p := range ss.Policies {
+		if ok := p.Accept(id, target); !ok {
+			return ok, p
+		}
+	}
+
+	return true, nil
+}
+
+// MakeBlacklist computes the list of blacklisted sources for `target`, i.e. the
+// sources that should not be used to perform a request to `target`, because there
+// is one or more policies that do not accept them.
+func (ss *SourceStore) MakeBlacklist(target string) []core.Source {
+	acc := make([]core.Source, 0, ss.Len())
+
+	// return immediately if there is no policy.
+	ss.mux.Lock()
+	l := len(ss.Policies)
+	ss.mux.Unlock()
+	if l == 0 {
+		return acc
+	}
+
+	ss.Do(func(src core.Source) {
+		if ok, _ := ss.ShouldAccept(src.ID(), target); !ok {
+			acc = append(acc, src)
+		}
+	})
+
+	return acc
 }
 
 // Len returns the number of sources available to the store.
@@ -126,7 +167,7 @@ func (ss *SourceStore) AppendPolicy(p *Policy) error {
 	return nil
 }
 
-// DelPolicy removes the policy with identifier id from the storage.
+// DelPolicy removes the policy with identifier `id` from the storage.
 func (ss *SourceStore) DelPolicy(id string) {
 	ss.mux.Lock()
 	defer ss.mux.Unlock()
@@ -156,9 +197,6 @@ func (ss *SourceStore) Put(sources ...core.Source) {
 
 	ss.protected.Put(sources...)
 }
-
-// Del removes the policies from the protected storage and
-// from the list of sources under policy.
 
 // Del removes `sources` from the protected storage.
 func (ss *SourceStore) Del(sources ...core.Source) {

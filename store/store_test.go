@@ -25,6 +25,148 @@ import (
 	"github.com/booster-proj/booster/store"
 )
 
+func TestGet(t *testing.T) {
+	s0 := &mock{id: "s0"}
+	s1 := &mock{id: "s1"}
+	t0 := "foo:port"
+	t1 := "bar:port"
+	st := &storage{
+		index: 0,
+		data:  []core.Source{s0, s1},
+	}
+	s := store.New(st)
+
+	ctx := context.Background()
+	src, err := s.Get(ctx, t0)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if src.ID() != s0.ID() {
+		t.Fatalf("Unexpected source: wanted %s, found %s", s0, src)
+	}
+
+	s.AppendPolicy(&store.Policy{
+		ID: "p0",
+		Accept: func(id, target string) bool {
+			// Does not accept s0 trying to contact t0
+			return !(id == s0.ID() && target == t0)
+		},
+	})
+
+	src, err = s.Get(ctx, t0)
+	if err == nil {
+		t.Fatalf("Unexpected source %v, we should have received an error instead", src)
+	}
+
+	src, err = s.Get(ctx, t1)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if src.ID() != s0.ID() {
+		t.Fatalf("Unexpected source: wanted %s, found %s", s0, src)
+	}
+
+	st.index = 1 // make storage return s1
+	src, err = s.Get(ctx, t0)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if src.ID() != s1.ID() {
+		t.Fatalf("Unexpected source: wanted %s, found %s", s1, src)
+	}
+}
+
+func TestMakeBlacklist(t *testing.T) {
+	s0 := &mock{id: "s0"}
+	s1 := &mock{id: "s1"}
+	s2 := &mock{id: "s2"}
+	t0 := "t0:port"
+	t1 := "t1:port"
+
+	s := store.New(&storage{data: []core.Source{s0, s1, s2}})
+
+	// Without policies the blacklist should be empty
+	if bl := s.MakeBlacklist(t0); len(bl) != 0 {
+		t.Fatalf("Unexpected blacklist content: wanted [], found %+v", bl)
+	}
+
+	p0 := "p0"
+	s.AppendPolicy(&store.Policy{
+		ID: p0,
+		Accept: func(id, target string) bool {
+			// Does not accept s0 trying to contact t0
+			return !(id == s0.ID() && target == t0)
+		},
+	})
+
+	if bl := s.MakeBlacklist(t0); len(bl) != 1 {
+		t.Fatalf("Unexpected blacklist content: wanted [%s], found %+v", s0, bl)
+	}
+	if bl := s.MakeBlacklist(t1); len(bl) != 0 {
+		t.Fatalf("Unexpected blacklist content: wanted [], found %+v", bl)
+	}
+}
+
+func TestShouldAccept(t *testing.T) {
+	s := store.New(&storage{})
+	id0 := "foo"
+	target := "host:port"
+
+	// Test that the source is accepted if there are no policies.
+	if ok, _ := s.ShouldAccept(id0, target); !ok {
+		t.Fatalf("Source %s was not accepted, even though it should have", id0)
+	}
+
+	// Add a policy that blocks foo
+	pid0 := "foo_block"
+	s.AppendPolicy(&store.Policy{
+		ID: pid0,
+		Accept: func(id, target string) bool {
+			return id != "foo"
+		},
+	})
+
+	ok, p := s.ShouldAccept(id0, target)
+	if ok {
+		t.Fatalf("Source %s was accepted, even though it shouldn't have", id0)
+	}
+	if p.ID != pid0 {
+		t.Fatalf("Source %s was correctly blocked, but from the wrong policy: expected %s, found %s", id0, pid0, p.ID)
+	}
+
+	// Try with a source that should not be blocked from the
+	// last policy added.
+	id1 := "bar"
+	ok, p = s.ShouldAccept(id1, target)
+	if !ok {
+		t.Fatalf("Source %s was not accepted, even though it should have", id1)
+	}
+
+	// Add a policy that blocks bar
+	pid1 := "bar_block"
+	s.AppendPolicy(&store.Policy{
+		ID: pid1,
+		Accept: func(id, target string) bool {
+			return id != "bar"
+		},
+	})
+
+	ok, p = s.ShouldAccept(id1, target)
+	if ok {
+		t.Fatalf("Source %s was accepted, even though it shouldn't have", id1)
+	}
+	if p.ID != pid1 {
+		t.Fatalf("Source %s was correctly blocked, but from the wrong policy: expected %s, found %s", id1, pid1, p.ID)
+	}
+
+	// Remove block on bar and check again
+	s.DelPolicy(pid1)
+	ok, p = s.ShouldAccept(id1, target)
+	if !ok {
+		t.Fatalf("Source %s was not accepted, even though it should have", id1)
+	}
+}
+
 func TestAddPolicy(t *testing.T) {
 	s := store.New(&storage{
 		data: []core.Source{},
@@ -123,7 +265,8 @@ func (s *mock) String() string {
 }
 
 type storage struct {
-	data []core.Source
+	index int // tells which source should be returned
+	data  []core.Source
 }
 
 func (s *storage) Put(ss ...core.Source) {
@@ -168,11 +311,10 @@ func (s *storage) Get(ctx context.Context, blacklisted ...core.Source) (core.Sou
 		}
 		return false
 	}
-
-	for _, v := range s.data {
-		if !isIn(v) {
-			return v, nil
-		}
+	src := s.data[s.index]
+	if !isIn(src) {
+		return src, nil
 	}
+
 	return nil, fmt.Errorf("storage: not suitable source found")
 }
