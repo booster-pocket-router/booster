@@ -25,85 +25,6 @@ import (
 	"github.com/booster-proj/booster/store"
 )
 
-type mock struct {
-	id     string
-	active bool
-}
-
-func (s *mock) ID() string {
-	return s.id
-}
-
-func (s *mock) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
-	if s.active {
-		return nil, nil
-	}
-	return nil, fmt.Errorf("no internet connection")
-}
-
-func (s *mock) Close() error {
-	return nil
-}
-
-func (s *mock) String() string {
-	return s.ID()
-}
-
-type storage struct {
-	data []core.Source
-}
-
-func (s *storage) Put(ss ...core.Source) {
-	s.data = append(s.data, ss...)
-}
-
-func (s *storage) Del(ss ...core.Source) {
-	filtered := make([]core.Source, 0, len(ss))
-	filter := func(src core.Source) bool {
-		for _, v := range ss {
-			if src.ID() == v.ID() {
-				return false
-			}
-		}
-		return true
-	}
-	for _, v := range s.data {
-		if filter(v) {
-			filtered = append(filtered, v)
-		}
-	}
-
-	s.data = filtered
-}
-
-func (s *storage) Len() int {
-	return len(s.data)
-}
-
-func (s *storage) Do(f func(core.Source)) {
-	for _, v := range s.data {
-		f(v)
-	}
-}
-
-func (s *storage) Get(ctx context.Context, blacklisted ...core.Source) (core.Source, error) {
-	isIn := func(s core.Source) bool {
-		for _, v := range blacklisted {
-			if v.ID() == s.ID() {
-				return true
-			}
-		}
-		return false
-	}
-
-	for _, v := range s.data {
-		if !isIn(v) {
-			return v, nil
-		}
-	}
-	return nil, fmt.Errorf("storage: not suitable source found")
-}
-
 func TestAddPolicy(t *testing.T) {
 	s := store.New(&storage{
 		data: []core.Source{},
@@ -321,4 +242,83 @@ func TestGetPoliciesSnapshot(t *testing.T) {
 	if len(pl) != 1 {
 		t.Fatalf("Unexpected policies count: wanted 1, found %+v", pl)
 	}
+}
+
+type mock struct {
+	id     string
+	active bool
+}
+
+func (s *mock) ID() string {
+	return s.id
+}
+
+func (s *mock) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	if s.active {
+		return nil, nil
+	}
+	return nil, fmt.Errorf("no internet connection")
+}
+
+func (s *mock) Close() error {
+	return nil
+}
+
+func (s *mock) String() string {
+	return s.ID()
+}
+
+type storage struct {
+	data []core.Source
+}
+
+func (s *storage) Put(ss ...core.Source) {
+	s.data = append(s.data, ss...)
+}
+
+func (s *storage) Del(ss ...core.Source) {
+	filtered := make([]core.Source, 0, len(ss))
+	filter := func(src core.Source) bool {
+		for _, v := range ss {
+			if src.ID() == v.ID() {
+				return false
+			}
+		}
+		return true
+	}
+	for _, v := range s.data {
+		if filter(v) {
+			filtered = append(filtered, v)
+		}
+	}
+
+	s.data = filtered
+}
+
+func (s *storage) Len() int {
+	return len(s.data)
+}
+
+func (s *storage) Do(f func(core.Source)) {
+	for _, v := range s.data {
+		f(v)
+	}
+}
+
+func (s *storage) Get(ctx context.Context, blacklisted ...core.Source) (core.Source, error) {
+	isIn := func(s core.Source) bool {
+		for _, v := range blacklisted {
+			if v.ID() == s.ID() {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, v := range s.data {
+		if !isIn(v) {
+			return v, nil
+		}
+	}
+	return nil, fmt.Errorf("storage: not suitable source found")
 }
