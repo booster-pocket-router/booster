@@ -80,7 +80,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	remote.StaticConf = remote.Config{
+	remote.Info = remote.BoosterInfo{
 		Version:    version,
 		Commit:     commit,
 		BuildTime:  buildTime,
@@ -96,7 +96,7 @@ func main() {
 		Store:           rs,
 		MetricsExporter: exp,
 	})
-	d := booster.New(b)
+	d := booster.New(rs)
 	d.SetMetricsExporter(exp)
 
 	router := remote.NewRouter()

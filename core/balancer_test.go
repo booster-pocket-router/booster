@@ -33,7 +33,7 @@ func newMock(id string) *mock {
 	return &mock{id: id}
 }
 
-func (s *mock) Name() string {
+func (s *mock) ID() string {
 	return s.id
 }
 
@@ -69,8 +69,8 @@ func TestPut(t *testing.T) {
 	}
 
 	b.Do(func(s core.Source) {
-		if s.Name() != "s0" {
-			t.Fatalf("Unexpected source Identifier: wanted s0, found %s", s.Name())
+		if s.ID() != "s0" {
+			t.Fatalf("Unexpected source Identifier: wanted s0, found %s", s.ID())
 		}
 	})
 }
@@ -114,8 +114,8 @@ func TestGet_roundRobin(t *testing.T) {
 			t.Fatalf("Unexpected error while getting source: %v. %v", i, err)
 		}
 
-		if s.Name() != v.out {
-			t.Fatalf("Unexpected source Name: iteration(%v): wanted %v, found %v", i, v.out, s.Name())
+		if s.ID() != v.out {
+			t.Fatalf("Unexpected source ID: iteration(%v): wanted %v, found %v", i, v.out, s.ID())
 		}
 	}
 }
@@ -128,17 +128,25 @@ func TestGetBlacklist_roundRobin(t *testing.T) {
 
 	b.Put(s0, s1)
 
-	s, _ := b.Get(context.TODO())
-	if s.Name() != "s0" {
-		t.Fatalf("Unexpected source Name: wanted %v, found %v", s0.Name(), s1.Name())
+	ctx := context.TODO()
+	s, _ := b.Get(ctx)
+	if s.ID() != "s0" {
+		t.Fatalf("Unexpected source ID: wanted %v, found %v", s0.ID(), s1.ID())
 	}
 
-	s2, err := b.Get(context.TODO(), s1)
+	s2, err := b.Get(ctx, s1)
 	if err != nil {
 		t.Fatalf("Unexpected error while getting source: %v", err)
 	}
-	if s2.Name() != "s0" {
-		t.Fatalf("Unexpected source Name: wanted %v, found %v, blacklisted source %v", s0.Name(), s2.Name(), s1.Name())
+	if s2.ID() != "s0" {
+		t.Fatalf("Unexpected source ID: wanted %v, found %v, blacklisted source %v", s0.ID(), s2.ID(), s1.ID())
+	}
+
+	// Test with one source blacklisted
+	b.Del(s1)
+	s3, err := b.Get(ctx, s0)
+	if err == nil {
+		t.Fatalf("Unexpected source %v: wanted an error", s3.ID())
 	}
 }
 
@@ -167,8 +175,8 @@ func TestDel(t *testing.T) {
 	}
 
 	b.Do(func(s core.Source) {
-		if s.Name() != "s1" {
-			t.Fatalf("Unexpected source Name: wanted s1, found %v", s.Name())
+		if s.ID() != "s1" {
+			t.Fatalf("Unexpected source ID: wanted s1, found %v", s.ID())
 		}
 	})
 

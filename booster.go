@@ -24,8 +24,15 @@ import (
 	"upspin.io/log"
 )
 
+// Balancer describes which functionalities must be provided in order
+// to allow booster to get sources.
+type Balancer interface {
+	Get(ctx context.Context, target string, blacklisted ...core.Source) (core.Source, error)
+	Len() int
+}
+
 // New returns an instance of a booster dialer.
-func New(b *core.Balancer) *Dialer {
+func New(b Balancer) *Dialer {
 	return &Dialer{b: b}
 }
 
@@ -39,7 +46,7 @@ type MetricsExporter interface {
 // instance to to retrieve a source to use when it comes to dial a network
 // connection.
 type Dialer struct {
-	b *core.Balancer
+	b Balancer
 
 	metrics struct {
 		sync.Mutex
@@ -58,21 +65,21 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (conn
 	// If the dialing fails, keep on trying with the other sources until exaustion.
 	for i := 0; len(bl) < d.Len(); i++ {
 		var src core.Source
-		src, err = d.b.Get(ctx, bl...)
+		src, err = d.b.Get(ctx, address, bl...)
 		if err != nil {
 			// Fail directly if the balancer returns an error, as
 			// we do not have any source to use.
 			return
 		}
 
-		d.sendMetrics(src.Name(), address)
+		d.sendMetrics(src.ID(), address)
 
-		log.Debug.Printf("DialContext: Attempt #%d to connect to %v (source %v)", i, address, src.Name())
+		log.Debug.Printf("DialContext: Attempt #%d to connect to %v (source %v)", i, address, src.ID())
 
 		conn, err = src.DialContext(ctx, "tcp4", address)
 		if err != nil {
 			// Log this error, otherwise it will be silently skipped.
-			log.Error.Printf("Unable to dial connection to %v using source %v. Error: %v", address, src.Name(), err)
+			log.Error.Printf("Unable to dial connection to %v using source %v. Error: %v", address, src.ID(), err)
 			bl = append(bl, src)
 			continue
 		}

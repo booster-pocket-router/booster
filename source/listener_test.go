@@ -33,7 +33,7 @@ type mock struct {
 	active bool
 }
 
-func (s *mock) Name() string {
+func (s *mock) ID() string {
 	return s.id
 }
 
@@ -49,7 +49,7 @@ func (s *mock) Close() error {
 }
 
 func (s *mock) String() string {
-	return s.Name()
+	return s.ID()
 }
 
 func TestHooker(t *testing.T) {
@@ -82,7 +82,7 @@ func (s *storage) Del(ss ...core.Source) {
 	filtered := make([]core.Source, 0, len(ss))
 	filter := func(src core.Source) bool {
 		for _, v := range ss {
-			if src.Name() == v.Name() {
+			if src.ID() == v.ID() {
 				return false
 			}
 		}
@@ -106,6 +106,12 @@ func (s *storage) GetActive() []core.Source {
 
 func (s *storage) Len() int {
 	return len(s.data)
+}
+
+func (s *storage) Do(f func(core.Source)) {
+	for _, v := range s.data {
+		f(v)
+	}
 }
 
 type mockProvider struct {
@@ -171,11 +177,11 @@ func sameContent(a, b []core.Source) bool {
 	copy(sortedA, a)
 	copy(sortedB, b)
 
-	sort.SliceStable(sortedA, func(i, j int) bool { return sortedA[i].Name() > sortedA[j].Name() })
-	sort.SliceStable(sortedB, func(i, j int) bool { return sortedB[i].Name() > sortedB[j].Name() })
+	sort.SliceStable(sortedA, func(i, j int) bool { return sortedA[i].ID() > sortedA[j].ID() })
+	sort.SliceStable(sortedB, func(i, j int) bool { return sortedB[i].ID() > sortedB[j].ID() })
 
 	for i, v := range sortedA {
-		if v.Name() != sortedB[i].Name() {
+		if v.ID() != sortedB[i].ID() {
 			return false
 		}
 	}
@@ -211,7 +217,7 @@ func TestDiff(t *testing.T) {
 		// remove things
 		f := func(src core.Source) bool {
 			for _, v := range remove {
-				if v.Name() == src.Name() {
+				if v.ID() == src.ID() {
 					return false
 				}
 			}
@@ -263,11 +269,11 @@ func TestPoll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i, v := range []string{en0.Name()} {
+	for i, v := range []string{en0.ID()} {
 		select {
 		case s := <-putc:
-			if v != s.Name() {
-				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.Name())
+			if v != s.ID() {
+				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.ID())
 			}
 		case <-time.After(time.Millisecond * 200):
 			t.Fatalf("%d: Deadline exceeded", i)
@@ -279,11 +285,11 @@ func TestPoll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i, v := range []string{awl0.Name()} {
+	for i, v := range []string{awl0.ID()} {
 		select {
 		case s := <-putc:
-			if v != s.Name() {
-				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.Name())
+			if v != s.ID() {
+				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.ID())
 			}
 		case <-time.After(time.Millisecond * 100):
 		}
@@ -294,11 +300,11 @@ func TestPoll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i, v := range []string{awl0.Name()} {
+	for i, v := range []string{awl0.ID()} {
 		select {
 		case s := <-delc:
-			if v != s.Name() {
-				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.Name())
+			if v != s.ID() {
+				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.ID())
 			}
 		case <-time.After(time.Millisecond * 200):
 			t.Fatalf("%d: Deadline exceeded", i)
@@ -313,11 +319,11 @@ func TestPoll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i, v := range []string{awl0.Name()} {
+	for i, v := range []string{awl0.ID()} {
 		select {
 		case s := <-putc:
-			if v != s.Name() {
-				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.Name())
+			if v != s.ID() {
+				t.Fatalf("%d: Unexpected source id: wanted %s, found %s", i, v, s.ID())
 			}
 		case <-time.After(time.Millisecond * 200):
 			t.Fatalf("%d: Deadline exceeded", i)

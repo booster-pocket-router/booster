@@ -22,7 +22,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type Config struct {
+type BoosterInfo struct {
 	Version   string `json:"version"`
 	Commit    string `json:"commit"`
 	BuildTime string `json:"build_time"`
@@ -32,7 +32,7 @@ type Config struct {
 	PromPort   int    `json:"-"`
 }
 
-var StaticConf Config = Config{}
+var Info BoosterInfo = BoosterInfo{}
 
 type Router struct {
 	r *mux.Router
@@ -54,7 +54,7 @@ func (r *Router) SetupRoutes() {
 	router.HandleFunc("/health.json", healthCheckHandler)
 	if store := r.Store; store != nil {
 		router.HandleFunc("/sources.json", makeSourcesHandler(store))
-		router.HandleFunc("/sources/{name}/block.json", makeBlockHandler(store)).Methods("POST", "DELETE")
+		router.HandleFunc("/sources/{id}/block.json", makeBlockHandler(store)).Methods("POST", "DELETE")
 		router.HandleFunc("/policies.json", makePoliciesHandler(store))
 	}
 	if handler := r.MetricsProvider; handler != nil {

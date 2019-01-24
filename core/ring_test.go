@@ -70,15 +70,15 @@ func TestNextPrev(t *testing.T) {
 	i := 0
 	r.Do(func(s core.Source) {
 		v := tt[i]
-		if v != s.Name() {
-			t.Fatalf("Unexpected Name value (%d): wanted %v, found %v", i, v, s.Name())
+		if v != s.ID() {
+			t.Fatalf("Unexpected ID value (%d): wanted %v, found %v", i, v, s.ID())
 		}
 		i++
 	})
 
 	// We should be at element 0 at this point.
-	if r.Prev().Source().Name() != "3" {
-		t.Fatalf("Unexpected Prev Name: wanted 3, found %s", r.Source().Name())
+	if r.Prev().Source().ID() != "3" {
+		t.Fatalf("Unexpected Prev ID: wanted 3, found %s", r.Source().ID())
 	}
 }
 
@@ -124,14 +124,14 @@ func TestLink(t *testing.T) {
 	// after r. The result points to the element following the
 	// last element of s after insertion.
 	//
-	if r.Source().Name() != "0" {
-		t.Fatalf("Unexpected linked r element: wanted 0, found %s", r.Source().Name())
+	if r.Source().ID() != "0" {
+		t.Fatalf("Unexpected linked r element: wanted 0, found %s", r.Source().ID())
 	}
 
 	for i := 0; i < n; i++ {
 		s := fmt.Sprintf("%d", i)
-		if r.Source().Name() != s {
-			t.Fatalf("%d: Unexpected linked r source Name: wanted %s, found %v", i, s, r.Source().Name())
+		if r.Source().ID() != s {
+			t.Fatalf("%d: Unexpected linked r source ID: wanted %s, found %v", i, s, r.Source().ID())
 		}
 		r.Next()
 	}
@@ -145,7 +145,7 @@ func TestUnlink(t *testing.T) {
 		r.Next()
 	}
 
-	t.Logf("r Name before unlink: %s", r.Source().Name())
+	t.Logf("r ID before unlink: %s", r.Source().ID())
 	t.Log("r content before unlink:")
 	r.Do(func(s core.Source) {
 		t.Log(s)
@@ -157,7 +157,7 @@ func TestUnlink(t *testing.T) {
 		t.Fatalf("Unexpected unlinked ring Len: wanted 2, found %d", r.Len())
 	}
 
-	t.Logf("r Name after unlink: %s", r.Source().Name())
+	t.Logf("r ID after unlink: %s", r.Source().ID())
 	t.Log("r content after unlink:")
 	r.Do(func(s core.Source) {
 		t.Log(s)
@@ -166,8 +166,8 @@ func TestUnlink(t *testing.T) {
 	// We should still point to element 0
 	tt := []string{"0", "3"}
 	for i, v := range tt {
-		if v != r.Source().Name() {
-			t.Fatalf("%d: Unexpected source Name: wanted %s, found %s", i, v, r.Source().Name())
+		if v != r.Source().ID() {
+			t.Fatalf("%d: Unexpected source ID: wanted %s, found %s", i, v, r.Source().ID())
 		}
 		r.Next()
 	}
@@ -175,8 +175,8 @@ func TestUnlink(t *testing.T) {
 	// Check content of removed subring
 	tt = []string{"1", "2"}
 	for i, v := range tt {
-		if v != s.Source().Name() {
-			t.Fatalf("%d: Unexpected source Name: wanted %s, found %s", i, v, s.Source().Name())
+		if v != s.Source().ID() {
+			t.Fatalf("%d: Unexpected source ID: wanted %s, found %s", i, v, s.Source().ID())
 		}
 		s.Next()
 	}
