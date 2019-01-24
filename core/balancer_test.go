@@ -128,17 +128,25 @@ func TestGetBlacklist_roundRobin(t *testing.T) {
 
 	b.Put(s0, s1)
 
-	s, _ := b.Get(context.TODO())
+	ctx := context.TODO()
+	s, _ := b.Get(ctx)
 	if s.ID() != "s0" {
 		t.Fatalf("Unexpected source ID: wanted %v, found %v", s0.ID(), s1.ID())
 	}
 
-	s2, err := b.Get(context.TODO(), s1)
+	s2, err := b.Get(ctx, s1)
 	if err != nil {
 		t.Fatalf("Unexpected error while getting source: %v", err)
 	}
 	if s2.ID() != "s0" {
 		t.Fatalf("Unexpected source ID: wanted %v, found %v, blacklisted source %v", s0.ID(), s2.ID(), s1.ID())
+	}
+
+	// Test with one source blacklisted
+	b.Del(s1)
+	s3, err := b.Get(ctx, s0)
+	if err == nil {
+		t.Fatalf("Unexpected source %v: wanted an error", s3.ID())
 	}
 }
 

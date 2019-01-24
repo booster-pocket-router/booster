@@ -83,24 +83,20 @@ func (b *Balancer) Get(ctx context.Context, blacklist ...Source) (Source, error)
 		bl[v.ID()] = nil
 	}
 
-	var s Source
-	var err error
 	for i := 0; i < b.r.Len(); i++ {
-		s, err = b.Strategy(ctx, b.r)
+		s, err := b.Strategy(ctx, b.r)
 		if err != nil {
 			// Avoid retring if the strategy returns an error.
 			return nil, err
 		}
 
 		// Check if the source is contained in the blacklist.
-		if _, ok := bl[s.ID()]; ok {
-			// Skip this source
-			continue
+		if _, ok := bl[s.ID()]; !ok {
+			return s, nil
 		}
-		break
 	}
 
-	return s, nil
+	return nil, errors.New("balancer: unable to find any suitable source")
 }
 
 // Put adds ss as sources to the current balancer ring. If ss.len() == 0, Put silently returns,
