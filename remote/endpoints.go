@@ -36,7 +36,7 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 		Alive bool `json:"alive"`
 		BoosterInfo
 	}{
-		Alive:  true,
+		Alive:       true,
 		BoosterInfo: Info,
 	})
 }

@@ -16,9 +16,9 @@
 package store
 
 import (
+	"context"
 	"fmt"
 	"sync"
-	"context"
 
 	"github.com/booster-proj/booster/core"
 )
@@ -72,13 +72,13 @@ type SourceStore struct {
 
 // A DummySource is a source which stores only the information
 // of it's parent source at copy time, but it is no longer able
-// to produce any internet connection. It should be used to show 
+// to produce any internet connection. It should be used to show
 // snapshots of the current storage to other componets of the
 // program that should not be able to break or work with the
 // original and active source.
 type DummySource struct {
 	internal core.Source `json:"-"`
-	ID     string      `json:"name"`
+	ID       string      `json:"name"`
 	Policy   *Policy     `json:"policy"`
 	Blocked  bool        `json:"blocked"`
 }
@@ -147,14 +147,14 @@ func (ss *SourceStore) GetSourcesSnapshot() []*DummySource {
 
 	ss.protected.Do(func(src core.Source) {
 		acc = append(acc, &DummySource{
-			ID:    src.ID(),
+			ID:      src.ID(),
 			Blocked: false,
 		})
 	})
 
 	for _, v := range ss.underPolicy {
 		acc = append(acc, &DummySource{
-			ID:    v.ID,
+			ID:      v.ID,
 			Blocked: v.Blocked,
 			Policy:  v.Policy,
 		})
@@ -207,7 +207,7 @@ func (ss *SourceStore) AddPolicy(p *Policy) error {
 	for _, v := range acc {
 		ss.underPolicy = append(ss.underPolicy, &DummySource{
 			internal: v,
-			ID:     v.ID(),
+			ID:       v.ID(),
 			Blocked:  true,
 			Policy:   p,
 		})
@@ -286,7 +286,7 @@ func (ss *SourceStore) Put(sources ...core.Source) {
 		} else {
 			up = append(up, &DummySource{
 				internal: v,
-				ID:     v.ID(),
+				ID:       v.ID(),
 				Policy:   p,
 				Blocked:  true,
 			})
