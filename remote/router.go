@@ -54,7 +54,7 @@ func (r *Router) SetupRoutes() {
 	router.HandleFunc("/health.json", healthCheckHandler)
 	if store := r.Store; store != nil {
 		router.HandleFunc("/sources.json", makeSourcesHandler(store))
-		router.HandleFunc("/sources/{name}/block.json", makeBlockHandler(store)).Methods("POST", "DELETE")
+		router.HandleFunc("/sources/{id}/block.json", makeBlockHandler(store)).Methods("POST", "DELETE")
 		router.HandleFunc("/policies.json", makePoliciesHandler(store))
 	}
 	if handler := r.MetricsProvider; handler != nil {

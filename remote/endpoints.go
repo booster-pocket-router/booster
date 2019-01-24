@@ -70,14 +70,14 @@ func makePoliciesHandler(s *store.SourceStore) func(w http.ResponseWriter, r *ht
 func makeBlockHandler(s *store.SourceStore) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		name := vars["name"]
+		id := vars["id"]
 
 		p := &store.Policy{
-			ID:     "block_" + name,
+			ID:     "block_" + id,
 			Issuer: "remote",
 			Code:   store.PolicyBlock,
-			Accept: func(n, target string) bool {
-				return n != name
+			Accept: func(tid, target string) bool {
+				return tid != id
 			},
 		}
 
