@@ -24,6 +24,8 @@ import (
 	"upspin.io/log"
 )
 
+// Balancer describes which functionalities must be provided in order
+// to allow booster to get sources.
 type Balancer interface {
 	Get(context.Context, ...core.Source) (core.Source, error)
 	Len() int
