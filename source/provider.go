@@ -66,5 +66,5 @@ func (p *MergedProvider) Check(ctx context.Context, src core.Source, level Confi
 	if ifi, ok := src.(*Interface); ok {
 		return p.local.Check(ctx, ifi, level)
 	}
-	return fmt.Errorf("provider: unable to find suitable checks for source %s", src.Name())
+	return fmt.Errorf("provider: unable to find suitable checks for source %s", src.ID())
 }

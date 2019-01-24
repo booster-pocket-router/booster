@@ -33,13 +33,13 @@ func (i *Interface) dialContext(ctx context.Context, network, address string) (n
 
 	addrs, err := i.ifi.Addrs()
 	if err != nil {
-		return nil, errors.New("Unable to retrieve interface addresses from interface " + i.Name() + ": " + err.Error())
+		return nil, errors.New("Unable to retrieve interface addresses from interface " + i.ID() + ": " + err.Error())
 	}
 
 	for _, v := range addrs {
 		ip, _, err := net.ParseCIDR(v.String())
 		if err != nil {
-			return nil, errors.New("Unable to parse CIDR from interface " + i.Name() + ": " + err.Error())
+			return nil, errors.New("Unable to parse CIDR from interface " + i.ID() + ": " + err.Error())
 		}
 
 		if ip4 := ip.To4(); ip4 != nil {
@@ -59,14 +59,14 @@ func (i *Interface) dialContext(ctx context.Context, network, address string) (n
 	}
 
 	if addr == nil {
-		return nil, errors.New("Unable to create a valid socket address from interface " + i.Name())
+		return nil, errors.New("Unable to create a valid socket address from interface " + i.ID())
 	}
 
 	d := &net.Dialer{
 		Control: func(network, address string, c syscall.RawConn) error {
 			return c.Control(func(fd uintptr) {
 				if err := unix.Bind(int(fd), addr); err != nil {
-					log.Debug.Printf("dialContext_unix error: unable to bind to interface %v: %v", i.Name(), err)
+					log.Debug.Printf("dialContext_unix error: unable to bind to interface %v: %v", i.ID(), err)
 				}
 			})
 		},

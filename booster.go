@@ -65,14 +65,14 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (conn
 			return
 		}
 
-		d.sendMetrics(src.Name(), address)
+		d.sendMetrics(src.ID(), address)
 
-		log.Debug.Printf("DialContext: Attempt #%d to connect to %v (source %v)", i, address, src.Name())
+		log.Debug.Printf("DialContext: Attempt #%d to connect to %v (source %v)", i, address, src.ID())
 
 		conn, err = src.DialContext(ctx, "tcp4", address)
 		if err != nil {
 			// Log this error, otherwise it will be silently skipped.
-			log.Error.Printf("Unable to dial connection to %v using source %v. Error: %v", address, src.Name(), err)
+			log.Error.Printf("Unable to dial connection to %v using source %v. Error: %v", address, src.ID(), err)
 			bl = append(bl, src)
 			continue
 		}

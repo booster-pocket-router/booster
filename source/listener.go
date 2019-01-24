@@ -98,7 +98,7 @@ func (err *hookErr) Error() string {
 
 type Hooker struct {
 	sync.Mutex
-	hooked map[string]*hookErr // list of hook errors mapped by source Name
+	hooked map[string]*hookErr // list of hook errors mapped by source ID
 }
 
 func (h *Hooker) HandleDialErr(ref, network, address string, err error) {
@@ -163,22 +163,22 @@ func Diff(old, cur []core.Source) (add []core.Source, remove []core.Source) {
 	oldm := make(map[string]core.Source, len(old))
 	curm := make(map[string]core.Source, len(cur))
 	for _, v := range old {
-		oldm[v.Name()] = v
+		oldm[v.ID()] = v
 	}
 	for _, v := range cur {
-		curm[v.Name()] = v
+		curm[v.ID()] = v
 	}
 
 	for _, v := range old {
 		// find sources to remove
-		if _, ok := curm[v.Name()]; !ok {
+		if _, ok := curm[v.ID()]; !ok {
 			remove = append(remove, v)
 		}
 	}
 
 	for _, v := range cur {
 		// find sources to add
-		if _, ok := oldm[v.Name()]; !ok {
+		if _, ok := oldm[v.ID()]; !ok {
 			add = append(add, v)
 		}
 	}
@@ -217,14 +217,14 @@ func (l *Listener) Poll(ctx context.Context) error {
 	for _, v := range remove {
 		log.Info.Printf("Listener: removing (%v) from storage.", v)
 		l.s.Del(v)
-		_ = l.h.HookErr(v.Name()) // also consume hook errors.
+		_ = l.h.HookErr(v.ID()) // also consume hook errors.
 	}
 
 	// Eventually remove the sources that contain hook errors.
 	old = l.s.GetActive() // as the list has been updated before the last call.
 	acc := make([]core.Source, 0, len(old))
 	for _, src := range old {
-		if err = l.h.HookErr(src.Name()); err != nil {
+		if err = l.h.HookErr(src.ID()); err != nil {
 			// This source has an hook error.
 			acc = append(acc, src)
 		}

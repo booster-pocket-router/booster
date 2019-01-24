@@ -75,7 +75,7 @@ type SourceStore struct {
 // original and active source.
 type DummySource struct {
 	internal core.Source `json:"-"`
-	Name     string      `json:"name"`
+	ID     string      `json:"name"`
 	Policy   *Policy     `json:"policy"`
 	Blocked  bool        `json:"blocked"`
 }
@@ -129,14 +129,14 @@ func (ss *SourceStore) GetSourcesSnapshot() []*DummySource {
 
 	ss.protected.Do(func(src core.Source) {
 		acc = append(acc, &DummySource{
-			Name:    src.Name(),
+			ID:    src.ID(),
 			Blocked: false,
 		})
 	})
 
 	for _, v := range ss.underPolicy {
 		acc = append(acc, &DummySource{
-			Name:    v.Name,
+			ID:    v.ID,
 			Blocked: v.Blocked,
 			Policy:  v.Policy,
 		})
@@ -170,7 +170,7 @@ func (ss *SourceStore) AddPolicy(p *Policy) error {
 	// are already in the storage.
 	acc := make([]core.Source, 0, ss.protected.Len())
 	ss.protected.Do(func(src core.Source) {
-		if !p.Accept(src.Name()) {
+		if !p.Accept(src.ID()) {
 			// the source was not accepted by
 			// the policy.
 			acc = append(acc, src)
@@ -189,7 +189,7 @@ func (ss *SourceStore) AddPolicy(p *Policy) error {
 	for _, v := range acc {
 		ss.underPolicy = append(ss.underPolicy, &DummySource{
 			internal: v,
-			Name:     v.Name(),
+			ID:     v.ID(),
 			Blocked:  true,
 			Policy:   p,
 		})
@@ -253,7 +253,7 @@ func (ss *SourceStore) Put(sources ...core.Source) {
 
 	sf := func(src core.Source) (*Policy, bool) {
 		for _, v := range ss.Policies {
-			if !v.Accept(src.Name()) {
+			if !v.Accept(src.ID()) {
 				return v, false
 			}
 		}
@@ -268,7 +268,7 @@ func (ss *SourceStore) Put(sources ...core.Source) {
 		} else {
 			up = append(up, &DummySource{
 				internal: v,
-				Name:     v.Name(),
+				ID:     v.ID(),
 				Policy:   p,
 				Blocked:  true,
 			})
@@ -283,7 +283,7 @@ func (ss *SourceStore) Put(sources ...core.Source) {
 	// Avoid adding duplicate values.
 	dsf := func(src *DummySource) bool {
 		for _, v := range ss.underPolicy {
-			if v.Name == src.Name {
+			if v.ID == src.ID {
 				return false
 			}
 		}
@@ -306,7 +306,7 @@ func (ss *SourceStore) Del(sources ...core.Source) {
 
 	f := func(src *DummySource) bool {
 		for _, v := range sources {
-			if v.Name() == src.Name {
+			if v.ID() == src.ID {
 				return false
 			}
 		}

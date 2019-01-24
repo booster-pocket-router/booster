@@ -30,7 +30,7 @@ type mock struct {
 	active bool
 }
 
-func (s *mock) Name() string {
+func (s *mock) ID() string {
 	return s.id
 }
 
@@ -46,7 +46,7 @@ func (s *mock) Close() error {
 }
 
 func (s *mock) String() string {
-	return s.Name()
+	return s.ID()
 }
 
 type storage struct {
@@ -61,7 +61,7 @@ func (s *storage) Del(ss ...core.Source) {
 	filtered := make([]core.Source, 0, len(ss))
 	filter := func(src core.Source) bool {
 		for _, v := range ss {
-			if src.Name() == v.Name() {
+			if src.ID() == v.ID() {
 				return false
 			}
 		}

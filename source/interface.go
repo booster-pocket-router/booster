@@ -60,9 +60,9 @@ func (i *Interface) SetMetricsExporter(exp MetricsExporter) {
 	i.metrics.exporter = exp
 }
 
-// Name implements the core.Source interface.
-func (i *Interface) Name() string {
-	return i.ifi.Name
+// ID implements the core.Source interface.
+func (i *Interface) ID() string {
+	return i.ifi.HardwareAddr.String()
 }
 
 // DialContext dials a connection of type `network` to `address`. If an error is
@@ -75,7 +75,7 @@ func (i *Interface) DialContext(ctx context.Context, network, address string) (n
 	conn, err := i.dialContext(ctx, network, address)
 	if err != nil {
 		if f := i.OnDialErr; f != nil {
-			f(i.Name(), network, address, err)
+			f(i.ID(), network, address, err)
 		}
 		return nil, err
 	}
@@ -97,13 +97,13 @@ func (i *Interface) Follow(conn net.Conn) net.Conn {
 	}
 	wconn.OnRead = func(data *DataFlow) {
 		i.SendMetrics(map[string]string{
-			"source": i.Name(),
+			"source": i.ID(),
 			"target": conn.RemoteAddr().String(),
 		}, data)
 	}
 	wconn.OnWrite = func(data *DataFlow) {
 		i.SendMetrics(map[string]string{
-			"source": i.Name(),
+			"source": i.ID(),
 			"target": conn.RemoteAddr().String(),
 		}, data)
 	}
@@ -137,7 +137,7 @@ func (i *Interface) Close() error {
 }
 
 func (i *Interface) String() string {
-	return i.Name()
+	return i.ID()
 }
 
 // Len returns the number of open connections.
