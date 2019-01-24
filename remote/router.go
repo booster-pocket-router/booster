@@ -22,7 +22,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type Config struct {
+type BoosterInfo struct {
 	Version   string `json:"version"`
 	Commit    string `json:"commit"`
 	BuildTime string `json:"build_time"`
@@ -32,7 +32,7 @@ type Config struct {
 	PromPort   int    `json:"-"`
 }
 
-var StaticConf Config = Config{}
+var Info BoosterInfo = BoosterInfo{}
 
 type Router struct {
 	r *mux.Router

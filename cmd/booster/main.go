@@ -80,7 +80,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	remote.StaticConf = remote.Config{
+	remote.Info = remote.BoosterInfo{
 		Version:    version,
 		Commit:     commit,
 		BuildTime:  buildTime,

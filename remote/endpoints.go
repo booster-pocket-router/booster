@@ -34,10 +34,10 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(struct {
 		Alive bool `json:"alive"`
-		Config
+		BoosterInfo
 	}{
 		Alive:  true,
-		Config: StaticConf,
+		BoosterInfo: Info,
 	})
 }
 
@@ -108,7 +108,7 @@ func makeBlockHandler(s *store.SourceStore) func(w http.ResponseWriter, r *http.
 func metricsForwardHandler(w http.ResponseWriter, r *http.Request) {
 	URL, _ := url.Parse(r.URL.String())
 	URL.Scheme = "http"
-	URL.Host = fmt.Sprintf("localhost:%d", StaticConf.PromPort)
+	URL.Host = fmt.Sprintf("localhost:%d", Info.PromPort)
 	URL.Path = "api/v1/query"
 
 	req, err := http.NewRequest(r.Method, URL.String(), r.Body)
