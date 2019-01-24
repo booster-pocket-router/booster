@@ -76,7 +76,7 @@ func makeBlockHandler(s *store.SourceStore) func(w http.ResponseWriter, r *http.
 			ID:     "block_" + name,
 			Issuer: "remote",
 			Code:   store.PolicyBlock,
-			Accept: func(n string) bool {
+			Accept: func(n, target string) bool {
 				return n != name
 			},
 		}

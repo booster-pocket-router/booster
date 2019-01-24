@@ -27,7 +27,7 @@ import (
 // Balancer describes which functionalities must be provided in order
 // to allow booster to get sources.
 type Balancer interface {
-	Get(context.Context, ...core.Source) (core.Source, error)
+	Get(ctx context.Context, target string, blacklisted ...core.Source) (core.Source, error)
 	Len() int
 }
 
@@ -65,7 +65,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (conn
 	// If the dialing fails, keep on trying with the other sources until exaustion.
 	for i := 0; len(bl) < d.Len(); i++ {
 		var src core.Source
-		src, err = d.b.Get(ctx, bl...)
+		src, err = d.b.Get(ctx, address, bl...)
 		if err != nil {
 			// Fail directly if the balancer returns an error, as
 			// we do not have any source to use.

@@ -41,10 +41,10 @@ const (
 type Policy struct {
 	// ID is used to identify later a policy.
 	ID string `json:"id"`
-	// Accept is the function used to check wether this policy
-	// is applied to item with name == name or not. Returns
-	// true if the input should be blocked/not accepted.
-	Accept func(name string) bool `json:"-"`
+	// Accept returns true if the source labeled with
+	// `id` should be accepted to open a connection to
+	// `target`.
+	Accept func(id, target string) bool `json:"-"`
 	// Reason explains why this policy exists.
 	Reason string `json:"reason"`
 	// Issuer tells where this policy comes from.
@@ -97,7 +97,7 @@ func New(store Store) *SourceStore {
 // the ones `blacklisted`. The `blacklisted` sources are populated with the sources
 // that cannot be accepted due to policy restrictions. The source is then
 // retriven from the protected storage.
-func (ss *SourceStore) Get(ctx context.Context, blacklisted ...core.Source) (core.Source, error) {
+func (ss *SourceStore) Get(ctx context.Context, target string, blacklisted ...core.Source) (core.Source, error) {
 	return ss.protected.Get(ctx, blacklisted...)
 }
 
@@ -188,7 +188,7 @@ func (ss *SourceStore) AddPolicy(p *Policy) error {
 	// are already in the storage.
 	acc := make([]core.Source, 0, ss.protected.Len())
 	ss.protected.Do(func(src core.Source) {
-		if !p.Accept(src.ID()) {
+		if !p.Accept(src.ID(), "todo") {
 			// the source was not accepted by
 			// the policy.
 			acc = append(acc, src)
@@ -271,7 +271,7 @@ func (ss *SourceStore) Put(sources ...core.Source) {
 
 	sf := func(src core.Source) (*Policy, bool) {
 		for _, v := range ss.Policies {
-			if !v.Accept(src.ID()) {
+			if !v.Accept(src.ID(), "todo") {
 				return v, false
 			}
 		}

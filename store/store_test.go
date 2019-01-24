@@ -36,7 +36,7 @@ func TestAddPolicy(t *testing.T) {
 	// Now add a policy.
 	s.AddPolicy(&store.Policy{
 		ID: "block_foo",
-		Accept: func(name string) bool {
+		Accept: func(name, target string) bool {
 			return name != "foo"
 		},
 		Reason: "Some reason",
@@ -54,7 +54,7 @@ func TestDelPolicy(t *testing.T) {
 	})
 	s.Policies = append(s.Policies, &store.Policy{
 		ID: "block_foo",
-		Accept: func(name string) bool {
+		Accept: func(name, target string) bool {
 			return name != "foo"
 		},
 		Reason: "Some reason",
@@ -95,7 +95,7 @@ func TestAddDelPolicy_withSideEffects(t *testing.T) {
 	// see the results.
 	p := &store.Policy{
 		ID: "block_foo",
-		Accept: func(name string) bool {
+		Accept: func(name, target string) bool {
 			return name != "foo"
 		},
 		Reason: "Some reason",
@@ -139,7 +139,7 @@ func TestPut(t *testing.T) {
 	// to Put sources or not.
 	p := &store.Policy{
 		ID: "block_bar",
-		Accept: func(name string) bool {
+		Accept: func(name, target string) bool {
 			return name != "bar"
 		},
 		Reason: "Some reason",
@@ -188,7 +188,7 @@ func TestDel(t *testing.T) {
 	// policy limbo.
 	p := &store.Policy{
 		ID: "block_bar",
-		Accept: func(name string) bool {
+		Accept: func(name, target string) bool {
 			return name != "bar"
 		},
 		Reason: "Some reason",
@@ -231,7 +231,7 @@ func TestGetPoliciesSnapshot(t *testing.T) {
 	// Now add a policy.
 	s.AddPolicy(&store.Policy{
 		ID: "block_foo",
-		Accept: func(name string) bool {
+		Accept: func(name, target string) bool {
 			return name != "foo"
 		},
 		Reason: "Some reason",
