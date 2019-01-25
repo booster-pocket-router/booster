@@ -58,6 +58,13 @@ func (p *GenPolicy) ID() string {
 	return p.Name
 }
 
+// BlockPolicy blocks `SourceID`.
+type BlockPolicy struct {
+	basePolicy
+	// Source that should be always refuted.
+	SourceID string `json:"-"`
+}
+
 func NewBlockPolicy(issuer, sourceID string) *BlockPolicy {
 	return &BlockPolicy{
 		basePolicy: basePolicy{
@@ -69,13 +76,6 @@ func NewBlockPolicy(issuer, sourceID string) *BlockPolicy {
 	}
 }
 
-// BlockPolicy blocks `SourceID`.
-type BlockPolicy struct {
-	basePolicy
-	// Source that should be always refuted.
-	SourceID string `json:"-"`
-}
-
 // Accept implements Policy.
 func (p *BlockPolicy) Accept(id, target string) bool {
 	return id != p.SourceID
@@ -84,6 +84,17 @@ func (p *BlockPolicy) Accept(id, target string) bool {
 // ID implements Policy.
 func (p *BlockPolicy) ID() string {
 	return "block_" + p.SourceID
+}
+
+// ReservedPolicy is a Policy implementation. It is used to reserve a source
+// for a specific connection target. Note that this does not mean that the
+// others sources may not receive a connection to target, it just means that
+// `SourceID` will not accept any other connection exept the ones that go to
+// `Target`.
+type ReservedPolicy struct {
+	basePolicy
+	SourceID string `json:"reserved_source_id"`
+	Target   string `json:"target"`
 }
 
 func NewReservedPolicy(issuer, sourceID, target string) *ReservedPolicy {
@@ -98,17 +109,6 @@ func NewReservedPolicy(issuer, sourceID, target string) *ReservedPolicy {
 	}
 }
 
-// ReservedPolicy is a Policy implementation. It is used to reserve a source
-// for a specific connection target. Note that this does not mean that the
-// others sources may not receive a connection to target, it just means that
-// `SourceID` will not accept any other connection exept the ones that go to
-// `Target`.
-type ReservedPolicy struct {
-	basePolicy
-	SourceID string `json:"-"`
-	Target   string `json:"target"`
-}
-
 // Accept implements Policy.
 func (p *ReservedPolicy) Accept(id, target string) bool {
 	if id == p.SourceID {
@@ -119,5 +119,38 @@ func (p *ReservedPolicy) Accept(id, target string) bool {
 
 // ID implements Policy.
 func (p *ReservedPolicy) ID() string {
+	return fmt.Sprintf("reserve_%s_for_%s", p.SourceID, p.Target)
+}
+
+// AvoidPolicy is a Policy implementation. It is used to avoid giving
+// connection to `Target` to `SourceID`.
+type AvoidPolicy struct {
+	basePolicy
+	SourceID string `json:"avoid_source_id"`
+	Target   string `json:"target"`
+}
+
+func NewAvoidPolicy(issuer, sourceID, target string) *AvoidPolicy {
+	return &AvoidPolicy{
+		basePolicy: basePolicy{
+			Issuer: issuer,
+			Code:   PolicyCodeReserve,
+			Desc:   fmt.Sprintf("Source %v will not be used for connections to %s", sourceID, target),
+		},
+		SourceID: sourceID,
+		Target:   target,
+	}
+}
+
+// Accept implements Policy.
+func (p *AvoidPolicy) Accept(id, target string) bool {
+	if target == p.Target {
+		return id != p.SourceID
+	}
+	return true
+}
+
+// ID implements Policy.
+func (p *AvoidPolicy) ID() string {
 	return fmt.Sprintf("reserve_%s_for_%s", p.SourceID, p.Target)
 }
