@@ -23,8 +23,6 @@ import (
 	"github.com/booster-proj/booster/core"
 )
 
-const PolicyBlock int = 101
-
 // Store describes an entity that is able to store,
 // delete and enumerate sources.
 type Store interface {
@@ -36,24 +34,11 @@ type Store interface {
 	Do(func(core.Source))
 }
 
-type Policy struct {
-	// ID is used to identify later a policy.
-	ID string `json:"id"`
-	// Accept returns true if the source labeled with
-	// `id` should be accepted to open a connection to
-	// `target`.
-	Accept func(id, target string) bool `json:"-"`
-	// Reason explains why this policy exists.
-	Reason string `json:"reason"`
-	// Issuer tells where this policy comes from.
-	Issuer string `json:"issuer"`
-	// Code is the code of the policy, usefull when the policy
-	// is delivered to another context.
-	Code int `json:"code"`
-}
-
-func (p *Policy) String() string {
-	return p.ID
+// A Policy defines wether a connection to `target` should
+// be accepted by source `id`.
+type Policy interface {
+	ID() string
+	Accept(id, target string) bool
 }
 
 // A SourceStore is able to keep sources under a set of
@@ -64,7 +49,7 @@ type SourceStore struct {
 	protected Store
 
 	mux      sync.Mutex
-	Policies []*Policy
+	Policies []Policy
 }
 
 // DummySource is a representation of a source, suitable
@@ -79,7 +64,7 @@ type DummySource struct {
 func New(store Store) *SourceStore {
 	return &SourceStore{
 		protected: store,
-		Policies:  []*Policy{},
+		Policies:  []Policy{},
 	}
 }
 
@@ -96,7 +81,7 @@ func (ss *SourceStore) Get(ctx context.Context, target string, blacklisted ...co
 // and returns false if the two inputs are not accepted by one of them. The
 // offending policy is also returned.
 // Returns true if no policy blocks `id` and `target`.
-func (ss *SourceStore) ShouldAccept(id, target string) (bool, *Policy) {
+func (ss *SourceStore) ShouldAccept(id, target string) (bool, Policy) {
 	ss.mux.Lock()
 	defer ss.mux.Unlock()
 
@@ -146,18 +131,18 @@ func (ss *SourceStore) Do(f func(core.Source)) {
 // that the policyes are always applied in order, and the chain of checks
 // is interrupted as soon as a policy refutes to accept a source, i.e. the
 // policies that come after that are not executed.
-func (ss *SourceStore) AppendPolicy(p *Policy) error {
+func (ss *SourceStore) AppendPolicy(p Policy) error {
 	ss.mux.Lock()
 	defer ss.mux.Unlock()
 
 	if ss.Policies == nil {
-		ss.Policies = make([]*Policy, 0, 1)
+		ss.Policies = make([]Policy, 0, 1)
 	}
 
 	// Ensure that this is not a duplicate.
 	for _, v := range ss.Policies {
-		if v.ID == p.ID {
-			return fmt.Errorf("source store: a policy with identifier %v is already present", v.ID)
+		if v.ID() == p.ID() {
+			return fmt.Errorf("source store: a policy with identifier %v is already present", v.ID())
 		}
 	}
 
@@ -176,7 +161,7 @@ func (ss *SourceStore) DelPolicy(id string) {
 	var j int
 	var found bool
 	for i, v := range ss.Policies {
-		if v.ID == id {
+		if v.ID() == id {
 			found = true
 			j = i
 			break
@@ -208,11 +193,11 @@ func (ss *SourceStore) Del(sources ...core.Source) {
 
 // GetPoliciesSnapshot returns a copy of the current policies
 // active in the store.
-func (ss *SourceStore) GetPoliciesSnapshot() []*Policy {
+func (ss *SourceStore) GetPoliciesSnapshot() []Policy {
 	ss.mux.Lock()
 	defer ss.mux.Unlock()
 
-	acc := make([]*Policy, len(ss.Policies))
+	acc := make([]Policy, len(ss.Policies))
 	copy(acc, ss.Policies)
 	return acc
 }

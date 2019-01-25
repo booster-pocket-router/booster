@@ -60,7 +60,7 @@ func makePoliciesHandler(s *store.SourceStore) func(w http.ResponseWriter, r *ht
 		w.Header().Set("Content-Type", "application/json")
 
 		json.NewEncoder(w).Encode(struct {
-			Policies []*store.Policy `json:"policies"`
+			Policies []store.Policy `json:"policies"`
 		}{
 			Policies: s.GetPoliciesSnapshot(),
 		})
@@ -71,15 +71,7 @@ func makeBlockHandler(s *store.SourceStore) func(w http.ResponseWriter, r *http.
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		id := vars["id"]
-
-		p := &store.Policy{
-			ID:     "block_" + id,
-			Issuer: "remote",
-			Code:   store.PolicyBlock,
-			Accept: func(tid, target string) bool {
-				return tid != id
-			},
-		}
+		p := store.NewBlockPolicy("remote", id)
 
 		w.Header().Set("Content-Type", "application/json")
 
@@ -99,7 +91,7 @@ func makeBlockHandler(s *store.SourceStore) func(w http.ResponseWriter, r *http.
 			w.WriteHeader(http.StatusCreated)
 		} else {
 			// Only POST and DELETE are registered.
-			s.DelPolicy(p.ID)
+			s.DelPolicy(p.ID())
 			w.WriteHeader(http.StatusOK)
 		}
 	}
