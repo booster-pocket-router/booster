@@ -171,8 +171,8 @@ func TestAddPolicy(t *testing.T) {
 	s := store.New(&storage{
 		data: []core.Source{},
 	})
-	if len(s.Policies) != 0 {
-		t.Fatalf("Unexpected policies count: wanted 0, found %+v", s.Policies)
+	if len(s.GetPoliciesSnapshot()) != 0 {
+		t.Fatalf("Unexpected policies count: wanted 0, found %+v", s.GetPoliciesSnapshot())
 	}
 
 	// Now add a policy.
@@ -182,8 +182,8 @@ func TestAddPolicy(t *testing.T) {
 			return false
 		},
 	})
-	if len(s.Policies) != 1 {
-		t.Fatalf("Unexpected policies count: wanted 1, found %+v", s.Policies)
+	if len(s.GetPoliciesSnapshot()) != 1 {
+		t.Fatalf("Unexpected policies count: wanted 1, found %+v", s.GetPoliciesSnapshot())
 	}
 }
 
@@ -197,14 +197,14 @@ func TestDelPolicy(t *testing.T) {
 			return false
 		},
 	})
-	if len(s.Policies) != 1 {
-		t.Fatalf("Unexpected policies count: wanted 1, found %+v", s.Policies)
+	if len(s.GetPoliciesSnapshot()) != 1 {
+		t.Fatalf("Unexpected policies count: wanted 1, found %+v", s.GetPoliciesSnapshot())
 	}
 
 	// Now remove the policy.
 	s.DelPolicy("foo")
-	if len(s.Policies) != 0 {
-		t.Fatalf("Unexpected policies count: wanted 0, found %+v", s.Policies)
+	if len(s.GetPoliciesSnapshot()) != 0 {
+		t.Fatalf("Unexpected policies count: wanted 0, found %+v", s.GetPoliciesSnapshot())
 	}
 
 }
