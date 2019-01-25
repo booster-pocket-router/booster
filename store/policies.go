@@ -19,7 +19,10 @@ import (
 	"fmt"
 )
 
-const PolicyCodeBlock int = iota + 1
+const (
+	PolicyCodeBlock int = iota + 1
+	PolicyCodeReserve
+)
 
 type basePolicy struct {
 	// Reason explains why this policy exists.
@@ -55,7 +58,6 @@ func (p *GenPolicy) ID() string {
 	return p.Name
 }
 
-// NewBlockPolicy returns a new Policy that blocks source `sourceID`.
 func NewBlockPolicy(issuer, sourceID string) *BlockPolicy {
 	return &BlockPolicy{
 		basePolicy: basePolicy{
@@ -67,7 +69,7 @@ func NewBlockPolicy(issuer, sourceID string) *BlockPolicy {
 	}
 }
 
-// BlockPolicy is a specific policy used to block single sources.
+// BlockPolicy blocks `SourceID`.
 type BlockPolicy struct {
 	basePolicy
 	// Source that should be always refuted.
@@ -82,4 +84,40 @@ func (p *BlockPolicy) Accept(id, target string) bool {
 // ID implements Policy.
 func (p *BlockPolicy) ID() string {
 	return "block_" + p.SourceID
+}
+
+func NewReservedPolicy(issuer, sourceID, target string) *ReservedPolicy {
+	return &ReservedPolicy{
+		basePolicy: basePolicy{
+			Issuer: issuer,
+			Code:   PolicyCodeReserve,
+			Desc:   fmt.Sprintf("Source %v will only be used for connections to %s", sourceID, target),
+		},
+		SourceID: sourceID,
+		Target:   target,
+	}
+}
+
+// ReservedPolicy is a Policy implementation. It is used to reserve a source
+// for a specific connection target. Note that this does not mean that the
+// others sources may not receive a connection to target, it just means that
+// `SourceID` will not accept any other connection exept the ones that go to
+// `Target`.
+type ReservedPolicy struct {
+	basePolicy
+	SourceID string `json:"-"`
+	Target   string `json:"target"`
+}
+
+// Accept implements Policy.
+func (p *ReservedPolicy) Accept(id, target string) bool {
+	if id == p.SourceID {
+		return target == p.Target
+	}
+	return true
+}
+
+// ID implements Policy.
+func (p *ReservedPolicy) ID() string {
+	return fmt.Sprintf("reserve_%s_for_%s", p.SourceID, p.Target)
 }

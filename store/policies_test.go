@@ -32,3 +32,24 @@ func TestBlockPolicy(t *testing.T) {
 		t.Fatalf("Policy %s accepted source %v", p.ID(), s0.ID())
 	}
 }
+
+func TestReservedPolicy(t *testing.T) {
+	s0 := &mock{id: "foo"}
+	s1 := &mock{id: "bar"}
+	t0 := "host0:port"
+	t1 := "host1:port"
+
+	p := store.NewReservedPolicy("T", s0.ID(), t0)
+	if ok := p.Accept(s0.ID(), t0); !ok {
+		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s0.ID(), t0)
+	}
+	if ok := p.Accept(s0.ID(), t1); ok {
+		t.Fatalf("Policy %s accepted source %v for target %s", p.ID(), s1.ID(), t1)
+	}
+	if ok := p.Accept(s1.ID(), t0); !ok {
+		t.Fatalf("Policy %s did not source %v for target %s", p.ID(), s1.ID(), t0)
+	}
+	if ok := p.Accept(s1.ID(), t1); !ok {
+		t.Fatalf("Policy %s accepted source %v for target %s", p.ID(), s1.ID(), t1)
+	}
+}
