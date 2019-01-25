@@ -22,6 +22,7 @@ import (
 const (
 	PolicyCodeBlock int = iota + 1
 	PolicyCodeReserve
+	PolicyCodeStick
 )
 
 type basePolicy struct {
@@ -152,5 +153,37 @@ func (p *AvoidPolicy) Accept(id, target string) bool {
 
 // ID implements Policy.
 func (p *AvoidPolicy) ID() string {
-	return fmt.Sprintf("reserve_%s_for_%s", p.SourceID, p.Target)
+	return fmt.Sprintf("avoid_%s_for_%s", p.SourceID, p.Target)
+}
+
+type HistoryQueryFunc func(string) (string, bool)
+
+type StickyPolicy struct {
+	basePolicy
+	BindHistory HistoryQueryFunc
+}
+
+func NewStickyPolicy(issuer string, f HistoryQueryFunc) *StickyPolicy {
+	return &StickyPolicy{
+		basePolicy: basePolicy{
+			Issuer: issuer,
+			Code:   PolicyCodeStick,
+			Desc:   "Once a source receives a connection to a target, the following connections to the same target will be assigned to the same source",
+		},
+		BindHistory: f,
+	}
+}
+
+// Accept implements Policy.
+func (p *StickyPolicy) Accept(id, target string) bool {
+	if hid, ok := p.BindHistory(target); ok {
+		return id == hid
+	}
+
+	return true
+}
+
+// ID implements Policy.
+func (p *StickyPolicy) ID() string {
+	return "stick"
 }

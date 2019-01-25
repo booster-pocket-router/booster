@@ -74,3 +74,43 @@ func TestAvoidPolicy(t *testing.T) {
 		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s1.ID(), t1)
 	}
 }
+
+func TestStickyPolicy(t *testing.T) {
+	s0 := &mock{id: "foo"}
+	s1 := &mock{id: "bar"}
+	t0 := "host0:port"
+	t1 := "host1:port"
+
+	history := make(map[string]string)
+	p := store.NewStickyPolicy("T", func(target string) (src string, ok bool) {
+		src, ok = history[target]
+		return
+	})
+
+	if ok := p.Accept(s0.ID(), t0); !ok {
+		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s0.ID(), t0)
+	}
+	if ok := p.Accept(s1.ID(), t0); !ok {
+		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s1.ID(), t0)
+	}
+	if ok := p.Accept(s0.ID(), t1); !ok {
+		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s0.ID(), t1)
+	}
+	if ok := p.Accept(s1.ID(), t1); !ok {
+		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s1.ID(), t1)
+	}
+
+	history[t0] = s0.ID()
+	if ok := p.Accept(s0.ID(), t0); !ok {
+		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s0.ID(), t0)
+	}
+	if ok := p.Accept(s1.ID(), t0); ok {
+		t.Fatalf("Policy %s accepted source %v for target %s", p.ID(), s1.ID(), t0)
+	}
+	if ok := p.Accept(s0.ID(), t1); !ok {
+		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s0.ID(), t1)
+	}
+	if ok := p.Accept(s1.ID(), t1); !ok {
+		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s1.ID(), t1)
+	}
+}
