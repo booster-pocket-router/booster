@@ -26,6 +26,7 @@ const (
 )
 
 type basePolicy struct {
+	Name string `json:"id"`
 	// Reason explains why this policy exists.
 	Reason string `json:"reason"`
 	// Issuer tells where this policy comes from.
@@ -37,26 +38,29 @@ type basePolicy struct {
 	Desc string `json:"description"`
 }
 
+func (p basePolicy) ID() string {
+	return p.Name
+}
+
 // GenPolicy is a general purpose policy that allows
 // to configure the behaviour of the Accept function
 // setting its AcceptFunc field.
 type GenPolicy struct {
 	basePolicy
+	Name string `json:"name"`
 
-	Name string `json:"id"`
 	// AcceptFunc is used as implementation
 	// of Accept.
 	AcceptFunc func(id, target string) bool `json:"-"`
 }
 
+func (p *GenPolicy) ID() string {
+	return p.Name
+}
+
 // Accept implements Policy.
 func (p *GenPolicy) Accept(id, target string) bool {
 	return p.AcceptFunc(id, target)
-}
-
-// ID implements Policy.
-func (p *GenPolicy) ID() string {
-	return p.Name
 }
 
 // BlockPolicy blocks `SourceID`.
@@ -69,9 +73,10 @@ type BlockPolicy struct {
 func NewBlockPolicy(issuer, sourceID string) *BlockPolicy {
 	return &BlockPolicy{
 		basePolicy: basePolicy{
+			Name:   "block_" + sourceID,
 			Issuer: issuer,
 			Code:   PolicyCodeBlock,
-			Desc:   fmt.Sprintf("Source %v will no longer be used", sourceID),
+			Desc:   fmt.Sprintf("source %v will no longer be used", sourceID),
 		},
 		SourceID: sourceID,
 	}
@@ -80,11 +85,6 @@ func NewBlockPolicy(issuer, sourceID string) *BlockPolicy {
 // Accept implements Policy.
 func (p *BlockPolicy) Accept(id, target string) bool {
 	return id != p.SourceID
-}
-
-// ID implements Policy.
-func (p *BlockPolicy) ID() string {
-	return "block_" + p.SourceID
 }
 
 // ReservedPolicy is a Policy implementation. It is used to reserve a source
@@ -101,9 +101,10 @@ type ReservedPolicy struct {
 func NewReservedPolicy(issuer, sourceID, target string) *ReservedPolicy {
 	return &ReservedPolicy{
 		basePolicy: basePolicy{
+			Name:   fmt.Sprintf("reserve_%s_for_%s", sourceID, target),
 			Issuer: issuer,
 			Code:   PolicyCodeReserve,
-			Desc:   fmt.Sprintf("Source %v will only be used for connections to %s", sourceID, target),
+			Desc:   fmt.Sprintf("source %v will only be used for connections to %s", sourceID, target),
 		},
 		SourceID: sourceID,
 		Target:   target,
@@ -118,11 +119,6 @@ func (p *ReservedPolicy) Accept(id, target string) bool {
 	return true
 }
 
-// ID implements Policy.
-func (p *ReservedPolicy) ID() string {
-	return fmt.Sprintf("reserve_%s_for_%s", p.SourceID, p.Target)
-}
-
 // AvoidPolicy is a Policy implementation. It is used to avoid giving
 // connection to `Target` to `SourceID`.
 type AvoidPolicy struct {
@@ -134,9 +130,10 @@ type AvoidPolicy struct {
 func NewAvoidPolicy(issuer, sourceID, target string) *AvoidPolicy {
 	return &AvoidPolicy{
 		basePolicy: basePolicy{
+			Name:   fmt.Sprintf("avoid_%s_for_%s", sourceID, target),
 			Issuer: issuer,
 			Code:   PolicyCodeReserve,
-			Desc:   fmt.Sprintf("Source %v will not be used for connections to %s", sourceID, target),
+			Desc:   fmt.Sprintf("source %v will not be used for connections to %s", sourceID, target),
 		},
 		SourceID: sourceID,
 		Target:   target,
@@ -151,24 +148,20 @@ func (p *AvoidPolicy) Accept(id, target string) bool {
 	return true
 }
 
-// ID implements Policy.
-func (p *AvoidPolicy) ID() string {
-	return fmt.Sprintf("avoid_%s_for_%s", p.SourceID, p.Target)
-}
-
 type HistoryQueryFunc func(string) (string, bool)
 
 type StickyPolicy struct {
 	basePolicy
-	BindHistory HistoryQueryFunc
+	BindHistory HistoryQueryFunc `json:"-"`
 }
 
 func NewStickyPolicy(issuer string, f HistoryQueryFunc) *StickyPolicy {
 	return &StickyPolicy{
 		basePolicy: basePolicy{
+			Name:   "stick",
 			Issuer: issuer,
 			Code:   PolicyCodeStick,
-			Desc:   "Once a source receives a connection to a target, the following connections to the same target will be assigned to the same source",
+			Desc:   "once a source receives a connection to a target, the following connections to the same target will be assigned to the same source",
 		},
 		BindHistory: f,
 	}
@@ -181,9 +174,4 @@ func (p *StickyPolicy) Accept(id, target string) bool {
 	}
 
 	return true
-}
-
-// ID implements Policy.
-func (p *StickyPolicy) ID() string {
-	return "stick"
 }

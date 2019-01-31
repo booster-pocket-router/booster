@@ -182,12 +182,12 @@ func (ss *SourceStore) AppendPolicy(p Policy) error {
 }
 
 // DelPolicy removes the policy with identifier `id` from the storage.
-func (ss *SourceStore) DelPolicy(id string) {
+func (ss *SourceStore) DelPolicy(id string) error {
 	ss.policies.Lock()
 	defer ss.policies.Unlock()
 
 	if ss.policies.val == nil {
-		return
+		return fmt.Errorf("source store: no policies stored")
 	}
 
 	// Remove the policy from the storage.
@@ -201,11 +201,12 @@ func (ss *SourceStore) DelPolicy(id string) {
 		}
 	}
 	if !found {
-		return
+		return fmt.Errorf("source store: no %s policy found", id)
 	}
 	// avoid any possible memory leak in the underlying array.
 	ss.policies.val[j] = nil
 	ss.policies.val = append(ss.policies.val[:j], ss.policies.val[j+1:]...)
+	return nil
 }
 
 // Put adds `sources` to the protected storage.
