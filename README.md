@@ -64,7 +64,8 @@ apply block policy: source `source_id` will no longer be used
 ```
 POST /policies/sticky.json
 -d {"issuer": "", "reason": ""}
-apply sticky policy: once a source receives a connection to a target, the following connections to the same target will be assigned to the same source
+apply sticky policy: once a source receives a connection to a target, the following connections 
+to the same target will be assigned to the same source
 ```
 ```
 POST /policies/reserve.json
@@ -78,7 +79,8 @@ apply reserve policy: source `source_id` will not be used for connections to `ta
 ```
 ```
 GET /metrics.json
-forwards the request to a local prometheus api/v1/query endpoint, preserving headers, query parameters and request body
+forwards the request to a local prometheus api/v1/query endpoint, preserving headers,
+query parameters and request body
 ```
 ```
 GET /metrics
