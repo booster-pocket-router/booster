@@ -13,6 +13,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// Package store is the main component that orchestrates sources.
+// It provides a `SourceStore` that has to be configured with `New`,
+// providing the internal store that the `SourceStore` will use to
+// save the sources that it receives.
+// The behaviour that `SourceStore` uses to retrieve sources from its
+// protected storage can be manipulated adding and removing policies
+// to and from it.
 package store
 
 import (
@@ -22,8 +29,6 @@ import (
 
 	"github.com/booster-proj/booster/core"
 )
-
-const PolicyBlock int = 101
 
 // Store describes an entity that is able to store,
 // delete and enumerate sources.
@@ -36,24 +41,11 @@ type Store interface {
 	Do(func(core.Source))
 }
 
-type Policy struct {
-	// ID is used to identify later a policy.
-	ID string `json:"id"`
-	// Accept returns true if the source labeled with
-	// `id` should be accepted to open a connection to
-	// `target`.
-	Accept func(id, target string) bool `json:"-"`
-	// Reason explains why this policy exists.
-	Reason string `json:"reason"`
-	// Issuer tells where this policy comes from.
-	Issuer string `json:"issuer"`
-	// Code is the code of the policy, usefull when the policy
-	// is delivered to another context.
-	Code int `json:"code"`
-}
-
-func (p *Policy) String() string {
-	return p.ID
+// A Policy defines wether a connection to `target` should
+// be accepted by source `id`.
+type Policy interface {
+	ID() string
+	Accept(id, target string) bool
 }
 
 // A SourceStore is able to keep sources under a set of
@@ -63,8 +55,15 @@ func (p *Policy) String() string {
 type SourceStore struct {
 	protected Store
 
-	mux      sync.Mutex
-	Policies []*Policy
+	policies struct {
+		sync.Mutex
+		val []Policy
+	}
+	bindHistory struct {
+		sync.Mutex
+		record bool
+		val    map[string]string
+	}
 }
 
 // DummySource is a representation of a source, suitable
@@ -79,7 +78,6 @@ type DummySource struct {
 func New(store Store) *SourceStore {
 	return &SourceStore{
 		protected: store,
-		Policies:  []*Policy{},
 	}
 }
 
@@ -87,20 +85,42 @@ func New(store Store) *SourceStore {
 // the ones `blacklisted`. The `blacklisted` list is populated with the sources
 // that cannot be accepted due to policy restrictions. The source is then
 // retriven from the protected storage.
+// If `bindHistory.record == true`, the source identifier returned for this target
+// is saved into `bindHistory.val`.
 func (ss *SourceStore) Get(ctx context.Context, target string, blacklisted ...core.Source) (core.Source, error) {
 	blacklisted = append(blacklisted, ss.MakeBlacklist(target)...)
-	return ss.protected.Get(ctx, blacklisted...)
+	src, err := ss.protected.Get(ctx, blacklisted...)
+	if err != nil {
+		return src, err
+	}
+
+	ss.bindHistory.Lock()
+	defer ss.bindHistory.Unlock()
+	if !ss.bindHistory.record {
+		return src, nil
+	}
+
+	if ss.bindHistory.val == nil {
+		ss.bindHistory.val = make(map[string]string)
+	}
+
+	ss.bindHistory.val[target] = src.ID()
+	return src, nil
 }
 
 // ShouldAccept takes `id` and `target`, iterates through the list of policies
 // and returns false if the two inputs are not accepted by one of them. The
 // offending policy is also returned.
 // Returns true if no policy blocks `id` and `target`.
-func (ss *SourceStore) ShouldAccept(id, target string) (bool, *Policy) {
-	ss.mux.Lock()
-	defer ss.mux.Unlock()
+func (ss *SourceStore) ShouldAccept(id, target string) (bool, Policy) {
+	ss.policies.Lock()
+	defer ss.policies.Unlock()
 
-	for _, p := range ss.Policies {
+	if ss.policies.val == nil {
+		return true, nil
+	}
+
+	for _, p := range ss.policies.val {
 		if ok := p.Accept(id, target); !ok {
 			return ok, p
 		}
@@ -116,9 +136,10 @@ func (ss *SourceStore) MakeBlacklist(target string) []core.Source {
 	acc := make([]core.Source, 0, ss.Len())
 
 	// return immediately if there is no policy.
-	ss.mux.Lock()
-	l := len(ss.Policies)
-	ss.mux.Unlock()
+	ss.policies.Lock()
+	l := len(ss.policies.val)
+	ss.policies.Unlock()
+
 	if l == 0 {
 		return acc
 	}
@@ -146,74 +167,79 @@ func (ss *SourceStore) Do(f func(core.Source)) {
 // that the policyes are always applied in order, and the chain of checks
 // is interrupted as soon as a policy refutes to accept a source, i.e. the
 // policies that come after that are not executed.
-func (ss *SourceStore) AppendPolicy(p *Policy) error {
-	ss.mux.Lock()
-	defer ss.mux.Unlock()
+func (ss *SourceStore) AppendPolicy(p Policy) error {
+	ss.policies.Lock()
+	defer ss.policies.Unlock()
 
-	if ss.Policies == nil {
-		ss.Policies = make([]*Policy, 0, 1)
+	if ss.policies.val == nil {
+		ss.policies.val = make([]Policy, 0, 1)
 	}
 
 	// Ensure that this is not a duplicate.
-	for _, v := range ss.Policies {
-		if v.ID == p.ID {
-			return fmt.Errorf("source store: a policy with identifier %v is already present", v.ID)
+	for _, v := range ss.policies.val {
+		if v.ID() == p.ID() {
+			return fmt.Errorf("source store: a policy with identifier %v is already present", v.ID())
 		}
 	}
 
 	// Eventually append the new policy.
-	ss.Policies = append(ss.Policies, p)
+	ss.policies.val = append(ss.policies.val, p)
 
 	return nil
 }
 
 // DelPolicy removes the policy with identifier `id` from the storage.
-func (ss *SourceStore) DelPolicy(id string) {
-	ss.mux.Lock()
-	defer ss.mux.Unlock()
+func (ss *SourceStore) DelPolicy(id string) error {
+	ss.policies.Lock()
+	defer ss.policies.Unlock()
+
+	if ss.policies.val == nil {
+		return fmt.Errorf("source store: no policies stored")
+	}
 
 	// Remove the policy from the storage.
 	var j int
 	var found bool
-	for i, v := range ss.Policies {
-		if v.ID == id {
+	for i, v := range ss.policies.val {
+		if v.ID() == id {
 			found = true
 			j = i
 			break
 		}
 	}
 	if !found {
-		return
+		return fmt.Errorf("source store: no %s policy found", id)
 	}
 	// avoid any possible memory leak in the underlying array.
-	ss.Policies[j] = nil
-	ss.Policies = append(ss.Policies[:j], ss.Policies[j+1:]...)
+	ss.policies.val[j] = nil
+	ss.policies.val = append(ss.policies.val[:j], ss.policies.val[j+1:]...)
+	return nil
 }
 
 // Put adds `sources` to the protected storage.
 func (ss *SourceStore) Put(sources ...core.Source) {
-	ss.mux.Lock()
-	defer ss.mux.Unlock()
+	ss.policies.Lock()
+	defer ss.policies.Unlock()
 
 	ss.protected.Put(sources...)
 }
 
 // Del removes `sources` from the protected storage.
 func (ss *SourceStore) Del(sources ...core.Source) {
-	ss.mux.Lock()
-	defer ss.mux.Unlock()
+	ss.policies.Lock()
+	defer ss.policies.Unlock()
 
 	ss.protected.Del(sources...)
 }
 
 // GetPoliciesSnapshot returns a copy of the current policies
 // active in the store.
-func (ss *SourceStore) GetPoliciesSnapshot() []*Policy {
-	ss.mux.Lock()
-	defer ss.mux.Unlock()
+func (ss *SourceStore) GetPoliciesSnapshot() []Policy {
+	ss.policies.Lock()
+	defer ss.policies.Unlock()
 
-	acc := make([]*Policy, len(ss.Policies))
-	copy(acc, ss.Policies)
+	acc := make([]Policy, len(ss.policies.val))
+	copy(acc, ss.policies.val)
 	return acc
 }
 
@@ -229,4 +255,37 @@ func (ss *SourceStore) GetSourcesSnapshot() []*DummySource {
 	})
 
 	return acc
+}
+
+// RecordBindHistory makes the store keep track of which source is
+// assigned to which target.
+func (ss *SourceStore) RecordBindHistory() {
+	ss.bindHistory.Lock()
+	defer ss.bindHistory.Unlock()
+
+	ss.bindHistory.val = make(map[string]string)
+	ss.bindHistory.record = true
+}
+
+// StopRecordingBindHistory makes the store stop tracking which source is
+// assigned to which target. The old history, if any, is discarded.
+func (ss *SourceStore) StopRecordingBindHistory() {
+	ss.bindHistory.Lock()
+	defer ss.bindHistory.Unlock()
+
+	ss.bindHistory.val = nil
+	ss.bindHistory.record = false
+}
+
+// QueryBindHistory queries the bindHistory for target.
+func (ss *SourceStore) QueryBindHistory(target string) (src string, ok bool) {
+	ss.bindHistory.Lock()
+	defer ss.bindHistory.Unlock()
+
+	if ss.bindHistory.val == nil {
+		return
+	}
+
+	src, ok = ss.bindHistory.val[target]
+	return
 }

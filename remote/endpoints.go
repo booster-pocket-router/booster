@@ -25,7 +25,6 @@ import (
 
 	"github.com/booster-proj/booster/store"
 	"github.com/gorilla/mux"
-	"upspin.io/log"
 )
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
@@ -41,7 +40,7 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func makeSourcesHandler(s *store.SourceStore) func(w http.ResponseWriter, r *http.Request) {
+func makeSourcesHandler(s *store.SourceStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
@@ -54,55 +53,107 @@ func makeSourcesHandler(s *store.SourceStore) func(w http.ResponseWriter, r *htt
 	}
 }
 
-func makePoliciesHandler(s *store.SourceStore) func(w http.ResponseWriter, r *http.Request) {
+func makePoliciesHandler(s *store.SourceStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 
 		json.NewEncoder(w).Encode(struct {
-			Policies []*store.Policy `json:"policies"`
+			Policies []store.Policy `json:"policies"`
 		}{
 			Policies: s.GetPoliciesSnapshot(),
 		})
 	}
 }
 
-func makeBlockHandler(s *store.SourceStore) func(w http.ResponseWriter, r *http.Request) {
+func makePoliciesDelHandler(s *store.SourceStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		id := vars["id"]
-
-		p := &store.Policy{
-			ID:     "block_" + id,
-			Issuer: "remote",
-			Code:   store.PolicyBlock,
-			Accept: func(tid, target string) bool {
-				return tid != id
-			},
+		err := s.DelPolicy(mux.Vars(r)["id"])
+		if err != nil {
+			writeError(w, err, http.StatusNotFound)
+			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-
-		if r.Method == "POST" {
-			// Add a reason if available in the body.
-			var payload struct {
-				Reason string `json:"reason"`
-			}
-			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && err != io.EOF {
-				log.Error.Printf("block handler: unable to decode body: %v", err)
-			}
-			r.Body.Close()
-			if payload.Reason != "" {
-				p.Reason = payload.Reason
-			}
-			s.AppendPolicy(p)
-			w.WriteHeader(http.StatusCreated)
-		} else {
-			// Only POST and DELETE are registered.
-			s.DelPolicy(p.ID)
-			w.WriteHeader(http.StatusOK)
-		}
+		w.WriteHeader(http.StatusOK)
 	}
+}
+
+// PoliciesInput describes the fields required by most `POST` requests
+// to a `/policies/...` endpoint.
+type PoliciesInput struct {
+	SourceID string `json:"source_id"`
+	Target   string `json:"target"`
+	Reason   string `json:"reason"`
+	Issuer   string `json:"issuer"`
+}
+
+func makePoliciesBlockHandler(s *store.SourceStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		var payload PoliciesInput
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			writeError(w, err, http.StatusBadRequest)
+			return
+		}
+		p := store.NewBlockPolicy(payload.Issuer, payload.SourceID)
+		p.Reason = payload.Reason
+		handlePolicy(s, p, w, r)
+	}
+}
+
+func makePoliciesStickyHandler(s *store.SourceStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		var payload PoliciesInput
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			writeError(w, err, http.StatusBadRequest)
+			return
+		}
+
+		p := store.NewStickyPolicy(payload.Issuer, s.QueryBindHistory)
+		handlePolicy(s, p, w, r)
+	}
+}
+
+func makePoliciesReserveHandler(s *store.SourceStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		var payload PoliciesInput
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			writeError(w, err, http.StatusBadRequest)
+			return
+		}
+
+		p := store.NewReservedPolicy(payload.Issuer, payload.SourceID, payload.Target)
+		p.Reason = payload.Reason
+		handlePolicy(s, p, w, r)
+	}
+}
+
+func makePoliciesAvoidHandler(s *store.SourceStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		var payload PoliciesInput
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			writeError(w, err, http.StatusBadRequest)
+			return
+		}
+
+		p := store.NewAvoidPolicy(payload.Issuer, payload.SourceID, payload.Target)
+		p.Reason = payload.Reason
+		handlePolicy(s, p, w, r)
+	}
+}
+
+func handlePolicy(s *store.SourceStore, p store.Policy, w http.ResponseWriter, r *http.Request) {
+	if err := s.AppendPolicy(p); err != nil {
+		writeError(w, err, http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(p)
 }
 
 func metricsForwardHandler(w http.ResponseWriter, r *http.Request) {
@@ -134,4 +185,14 @@ func metricsForwardHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	io.Copy(w, gzipR)
+}
+
+func writeError(w http.ResponseWriter, err error, code int) {
+	w.WriteHeader(code)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(struct {
+		Error string `json:"error"`
+	}{
+		Error: err.Error(),
+	})
 }

@@ -45,9 +45,9 @@ func TestGet(t *testing.T) {
 		t.Fatalf("Unexpected source: wanted %s, found %s", s0, src)
 	}
 
-	s.AppendPolicy(&store.Policy{
-		ID: "p0",
-		Accept: func(id, target string) bool {
+	s.AppendPolicy(&store.GenPolicy{
+		Name: "p0",
+		AcceptFunc: func(id, target string) bool {
 			// Does not accept s0 trying to contact t0
 			return !(id == s0.ID() && target == t0)
 		},
@@ -91,9 +91,9 @@ func TestMakeBlacklist(t *testing.T) {
 	}
 
 	p0 := "p0"
-	s.AppendPolicy(&store.Policy{
-		ID: p0,
-		Accept: func(id, target string) bool {
+	s.AppendPolicy(&store.GenPolicy{
+		Name: p0,
+		AcceptFunc: func(id, target string) bool {
 			// Does not accept s0 trying to contact t0
 			return !(id == s0.ID() && target == t0)
 		},
@@ -119,9 +119,9 @@ func TestShouldAccept(t *testing.T) {
 
 	// Add a policy that blocks foo
 	pid0 := "foo_block"
-	s.AppendPolicy(&store.Policy{
-		ID: pid0,
-		Accept: func(id, target string) bool {
+	s.AppendPolicy(&store.GenPolicy{
+		Name: pid0,
+		AcceptFunc: func(id, target string) bool {
 			return id != "foo"
 		},
 	})
@@ -130,8 +130,8 @@ func TestShouldAccept(t *testing.T) {
 	if ok {
 		t.Fatalf("Source %s was accepted, even though it shouldn't have", id0)
 	}
-	if p.ID != pid0 {
-		t.Fatalf("Source %s was correctly blocked, but from the wrong policy: expected %s, found %s", id0, pid0, p.ID)
+	if p.ID() != pid0 {
+		t.Fatalf("Source %s was correctly blocked, but from the wrong policy: expected %s, found %s", id0, pid0, p.ID())
 	}
 
 	// Try with a source that should not be blocked from the
@@ -144,9 +144,9 @@ func TestShouldAccept(t *testing.T) {
 
 	// Add a policy that blocks bar
 	pid1 := "bar_block"
-	s.AppendPolicy(&store.Policy{
-		ID: pid1,
-		Accept: func(id, target string) bool {
+	s.AppendPolicy(&store.GenPolicy{
+		Name: pid1,
+		AcceptFunc: func(id, target string) bool {
 			return id != "bar"
 		},
 	})
@@ -155,8 +155,8 @@ func TestShouldAccept(t *testing.T) {
 	if ok {
 		t.Fatalf("Source %s was accepted, even though it shouldn't have", id1)
 	}
-	if p.ID != pid1 {
-		t.Fatalf("Source %s was correctly blocked, but from the wrong policy: expected %s, found %s", id1, pid1, p.ID)
+	if p.ID() != pid1 {
+		t.Fatalf("Source %s was correctly blocked, but from the wrong policy: expected %s, found %s", id1, pid1, p.ID())
 	}
 
 	// Remove block on bar and check again
@@ -171,22 +171,19 @@ func TestAddPolicy(t *testing.T) {
 	s := store.New(&storage{
 		data: []core.Source{},
 	})
-	if len(s.Policies) != 0 {
-		t.Fatalf("Unexpected policies count: wanted 0, found %+v", s.Policies)
+	if len(s.GetPoliciesSnapshot()) != 0 {
+		t.Fatalf("Unexpected policies count: wanted 0, found %+v", s.GetPoliciesSnapshot())
 	}
 
 	// Now add a policy.
-	s.AppendPolicy(&store.Policy{
-		ID: "foo",
-		Accept: func(name, target string) bool {
+	s.AppendPolicy(&store.GenPolicy{
+		Name: "foo",
+		AcceptFunc: func(name, target string) bool {
 			return false
 		},
-		Reason: "undefined",
-		Issuer: "testing.T",
-		Code:   -1,
 	})
-	if len(s.Policies) != 1 {
-		t.Fatalf("Unexpected policies count: wanted 1, found %+v", s.Policies)
+	if len(s.GetPoliciesSnapshot()) != 1 {
+		t.Fatalf("Unexpected policies count: wanted 1, found %+v", s.GetPoliciesSnapshot())
 	}
 }
 
@@ -194,23 +191,20 @@ func TestDelPolicy(t *testing.T) {
 	s := store.New(&storage{
 		data: []core.Source{},
 	})
-	s.AppendPolicy(&store.Policy{
-		ID: "foo",
-		Accept: func(name, target string) bool {
+	s.AppendPolicy(&store.GenPolicy{
+		Name: "foo",
+		AcceptFunc: func(name, target string) bool {
 			return false
 		},
-		Reason: "undefined",
-		Issuer: "testing.T",
-		Code:   -1,
 	})
-	if len(s.Policies) != 1 {
-		t.Fatalf("Unexpected policies count: wanted 1, found %+v", s.Policies)
+	if len(s.GetPoliciesSnapshot()) != 1 {
+		t.Fatalf("Unexpected policies count: wanted 1, found %+v", s.GetPoliciesSnapshot())
 	}
 
 	// Now remove the policy.
 	s.DelPolicy("foo")
-	if len(s.Policies) != 0 {
-		t.Fatalf("Unexpected policies count: wanted 0, found %+v", s.Policies)
+	if len(s.GetPoliciesSnapshot()) != 0 {
+		t.Fatalf("Unexpected policies count: wanted 0, found %+v", s.GetPoliciesSnapshot())
 	}
 
 }
@@ -225,14 +219,11 @@ func TestGetPoliciesSnapshot(t *testing.T) {
 	}
 
 	// Now add a policy.
-	s.AppendPolicy(&store.Policy{
-		ID: "foo",
-		Accept: func(name, target string) bool {
+	s.AppendPolicy(&store.GenPolicy{
+		Name: "foo",
+		AcceptFunc: func(name, target string) bool {
 			return false
 		},
-		Reason: "undefined",
-		Issuer: "testing.T",
-		Code:   -1,
 	})
 	pl = s.GetPoliciesSnapshot()
 	if len(pl) != 1 {
