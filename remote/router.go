@@ -28,6 +28,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// BoosterInfo contains the static information
+// displayed by the `/health.json` endpoint.
 type BoosterInfo struct {
 	Version   string `json:"version"`
 	Commit    string `json:"commit"`
@@ -40,6 +42,10 @@ type BoosterInfo struct {
 
 var Info BoosterInfo = BoosterInfo{}
 
+// Router is an `http.Handler` instance. Fill its
+// fields with the necessary information before calling
+// `SetupRoutes`. Its zero value IS NOT ready to be used.
+// Create a `Router` instance with `NewRouter` instead.
 type Router struct {
 	r *mux.Router
 
@@ -47,6 +53,8 @@ type Router struct {
 	MetricsProvider http.Handler
 }
 
+// NewRouter creates a new router instance. Router should not
+// ne created except with this function.
 func NewRouter() *Router {
 	return &Router{r: mux.NewRouter()}
 }
@@ -76,6 +84,7 @@ func (r *Router) SetupRoutes() {
 	router.Use(loggingMiddleware)
 }
 
+// ServeHTTP implements `http.Handler`.
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.r.ServeHTTP(w, req)
 }

@@ -78,6 +78,8 @@ func makePoliciesDelHandler(s *store.SourceStore) http.HandlerFunc {
 	}
 }
 
+// PoliciesInput describes the fields required by most `POST` requests
+// to a `/policies/...` endpoint.
 type PoliciesInput struct {
 	SourceID string `json:"source_id"`
 	Target   string `json:"target"`
