@@ -53,20 +53,35 @@ GET /policies.json
 list of active policies
 ```
 ```
-POST /sources/{name}/block.json
-activate a block policy on source with .Name == {name}
+DELETE /policies/{id}.json
+remove policy `id`
 ```
 ```
-DELETE /sources/{name}/block.json
-remove block policy on source with .Name == {name}
+POST /policies/block.json
+-d {"source_id": "", "issuer": "", "reason": ""}
+apply block policy: source `source_id` will no longer be used
+```
+```
+POST /policies/sticky.json
+-d {"issuer": "", "reason": ""}
+apply sticky policy: once a source receives a connection to a target, the following connections to the same target will be assigned to the same source
+```
+```
+POST /policies/reserve.json
+-d {"source_id": "", "target": "", "issuer": "", "reason": ""}
+apply reserve policy: source `source_id` will only be used for connections to `target`
+```
+```
+POST /policies/avoid.json
+-d {"source_id": "", "target": "", "issuer": "", "reason": ""}
+apply reserve policy: source `source_id` will not be used for connections to `target`
 ```
 ```
 GET /metrics.json
-forwards the request to a local prometheus api/v1/query endpoint, preserving
-headers, query parameters and request body.
+forwards the request to a local prometheus api/v1/query endpoint, preserving headers, query parameters and request body
 ```
 ```
 GET /metrics
-list the metrics exposed by the server using prometheus export encoding.
+list the metrics exposed by the server using prometheus export encoding
 ```
 
