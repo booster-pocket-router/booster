@@ -95,6 +95,11 @@ func makePoliciesBlockHandler(s *store.SourceStore) http.HandlerFunc {
 			writeError(w, err, http.StatusBadRequest)
 			return
 		}
+		if payload.SourceID == "" {
+			writeError(w, fmt.Errorf("validation error: source_id cannot be empty"), http.StatusBadRequest)
+			return
+		}
+
 		p := store.NewBlockPolicy(payload.Issuer, payload.SourceID)
 		p.Reason = payload.Reason
 		handlePolicy(s, p, w, r)
@@ -123,6 +128,14 @@ func makePoliciesReserveHandler(s *store.SourceStore) http.HandlerFunc {
 			writeError(w, err, http.StatusBadRequest)
 			return
 		}
+		if payload.SourceID == "" {
+			writeError(w, fmt.Errorf("validation error: source_id cannot be empty"), http.StatusBadRequest)
+			return
+		}
+		if payload.Target == "" {
+			writeError(w, fmt.Errorf("validation error: target cannot be empty"), http.StatusBadRequest)
+			return
+		}
 
 		p := store.NewReservedPolicy(payload.Issuer, payload.SourceID, payload.Target)
 		p.Reason = payload.Reason
@@ -138,6 +151,15 @@ func makePoliciesAvoidHandler(s *store.SourceStore) http.HandlerFunc {
 			writeError(w, err, http.StatusBadRequest)
 			return
 		}
+		if payload.SourceID == "" {
+			writeError(w, fmt.Errorf("validation error: source_id cannot be empty"), http.StatusBadRequest)
+			return
+		}
+		if payload.Target == "" {
+			writeError(w, fmt.Errorf("validation error: target cannot be empty"), http.StatusBadRequest)
+			return
+		}
+
 
 		p := store.NewAvoidPolicy(payload.Issuer, payload.SourceID, payload.Target)
 		p.Reason = payload.Reason
