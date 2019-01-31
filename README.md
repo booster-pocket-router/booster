@@ -35,7 +35,7 @@ make test # Test
 make # Build
 ```
 ## Usage
-Recap: when `booster` spawns, it identifies the network interfaces available in the system that provide an active internet connection. It then starts a proxy server that speaks either **socks5** or **http**. According to some particular **strategy**, the server is able to **distribute** the incoming network traffic across the network interfaces collected.
+Recap: when `booster` spawns, it identifies the network interfaces available in the system that provide an active internet connection. It then starts a proxy server that speaks either **socks5** or **http**. According to some particular **strategy** (still not configurable), and a set of **policies** (configurable), the server is able to **distribute** the incoming network traffic across the network interfaces collected.
 
 Note that `booster` runs as daemon when installed through `snap`, otherwise you'll have to start it manually:
 ``` bash
