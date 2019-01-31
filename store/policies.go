@@ -19,6 +19,7 @@ import (
 	"fmt"
 )
 
+// Policy codes, different for each `Policy` created.
 const (
 	PolicyCodeBlock int = iota + 1
 	PolicyCodeReserve
@@ -45,6 +46,8 @@ func (p basePolicy) ID() string {
 // GenPolicy is a general purpose policy that allows
 // to configure the behaviour of the Accept function
 // setting its AcceptFunc field.
+//
+// Used mainly in tests.
 type GenPolicy struct {
 	basePolicy
 	Name string `json:"name"`
@@ -148,8 +151,14 @@ func (p *AvoidPolicy) Accept(id, target string) bool {
 	return true
 }
 
+// HistoryQueryFunc describes the function that is used to query the bind
+// history of an entity. It is called passing the connection target in question,
+// and it returns the source identifier that is associated to it and true,
+// otherwise false if none is found.
 type HistoryQueryFunc func(string) (string, bool)
 
+// StickyPolicy is a Policy implementation. It is used to make connections to
+// some target be always bound with the same source.
 type StickyPolicy struct {
 	basePolicy
 	BindHistory HistoryQueryFunc `json:"-"`

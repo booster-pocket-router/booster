@@ -13,6 +13,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// Package store is the main component that orchestrates sources.
+// It provides a `SourceStore` that has to be configured with `New`,
+// providing the internal store that the `SourceStore` will use to
+// save the sources that it receives.
+// The behaviour that `SourceStore` uses to retrieve sources from its
+// protected storage can be manipulated adding and removing policies
+// to and from it.
 package store
 
 import (
