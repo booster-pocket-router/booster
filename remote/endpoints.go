@@ -68,7 +68,8 @@ func makePoliciesHandler(s *store.SourceStore) http.HandlerFunc {
 
 func makePoliciesDelHandler(s *store.SourceStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		err := s.DelPolicy(mux.Vars(r)["id"])
+		id := mux.Vars(r)["id"]
+		err := s.DelPolicy(id)
 		if err != nil {
 			writeError(w, err, http.StatusNotFound)
 			return
@@ -159,7 +160,6 @@ func makePoliciesAvoidHandler(s *store.SourceStore) http.HandlerFunc {
 			writeError(w, fmt.Errorf("validation error: target cannot be empty"), http.StatusBadRequest)
 			return
 		}
-
 
 		p := store.NewAvoidPolicy(payload.Issuer, payload.SourceID, payload.Target)
 		p.Reason = payload.Reason

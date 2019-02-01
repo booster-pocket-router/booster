@@ -25,6 +25,45 @@ import (
 	"github.com/booster-proj/booster/store"
 )
 
+func TestSaveBindHistory(t *testing.T) {
+	ip0 := "192.168.0.61"
+	ip1 := "192.168.0.62:443"
+	ip2 := "192.168.0.63"
+	ip3 := "192.168.0.64"
+	addrs := []string{ip0, ip1, ip2}
+	store.Resolver = resolver{
+		host:  "some.host",
+		addrs: addrs,
+	}
+
+	s := store.New(&storage{})
+	s.RecordBindHistory()
+
+	s0 := &mock{id: "s0"}
+	s.SaveBindHistory(context.TODO(), s0.ID(), ip0)
+
+	for i, v := range addrs {
+		id, ok := s.QueryBindHistory(v)
+		if !ok {
+			t.Fatalf("%d: Bind history does not contain %s, but it should", i, v)
+		}
+		if id != s0.ID() {
+			t.Fatalf("%d: Bind history contains wrong address-id association: wanted id %s, found %s", i, s0.ID(), id)
+		}
+	}
+
+	id, ok := s.QueryBindHistory(ip3)
+	if ok {
+		t.Fatalf("Bind history contains ip %s: %s, put it should not", ip3, id)
+	}
+
+	s.StopRecordingBindHistory()
+	id, ok = s.QueryBindHistory(ip0)
+	if ok {
+		t.Fatalf("Bind history contains ip %s: %s, put it should not", ip0, id)
+	}
+}
+
 func TestGet(t *testing.T) {
 	s0 := &mock{id: "s0"}
 	s1 := &mock{id: "s1"}
@@ -49,7 +88,9 @@ func TestGet(t *testing.T) {
 		Name: "p0",
 		AcceptFunc: func(id, target string) bool {
 			// Does not accept s0 trying to contact t0
-			return !(id == s0.ID() && target == t0)
+			t.Logf("AcceptFunc called with: id(%s) target(%s)", id, target)
+			trg := store.TrimPort(t0)
+			return !(id == s0.ID() && target == trg)
 		},
 	})
 
@@ -95,12 +136,54 @@ func TestMakeBlacklist(t *testing.T) {
 		Name: p0,
 		AcceptFunc: func(id, target string) bool {
 			// Does not accept s0 trying to contact t0
-			return !(id == s0.ID() && target == t0)
+			t.Logf("AcceptFunc called with: id(%s) target(%s)", id, target)
+			trg := store.TrimPort(t0)
+			return !(id == s0.ID() && target == trg)
 		},
 	})
 
 	if bl := s.MakeBlacklist(t0); len(bl) != 1 {
 		t.Fatalf("Unexpected blacklist content: wanted [%s], found %+v", s0, bl)
+	}
+	if bl := s.MakeBlacklist(t1); len(bl) != 0 {
+		t.Fatalf("Unexpected blacklist content: wanted [], found %+v", bl)
+	}
+}
+
+func TestMakeBlacklist_ipify(t *testing.T) {
+	en0 := &mock{id: "en0"}
+	en4 := &mock{id: "en4"}
+	t0 := "50.19.247.198:443"
+	t1 := "host.com:443"
+
+	s := store.New(&storage{data: []core.Source{en0, en4}})
+	store.Resolver = resolver{
+		addrs: []string{
+			"50.16.248.221",
+			"50.19.247.198",
+			"107.22.215.20",
+			"54.243.123.39",
+			"54.204.36.156",
+			"23.21.121.219",
+		},
+	}
+
+	// ipify connections can only be dialed with en0
+	rp := store.NewReservedPolicy("T", en0.ID(), "api.ipify.org")
+	s.AppendPolicy(rp)
+	if bl := s.MakeBlacklist(t0); len(bl) != 1 {
+		t.Fatalf("Unexpected blacklist content: wanted [%s], found %+v", en4, bl)
+	}
+	if bl := s.MakeBlacklist(t1); len(bl) != 1 {
+		t.Fatalf("Unexpected blacklist content: wanted [%s], found %+v", en0, bl)
+	}
+	s.DelPolicy(rp.ID())
+
+	// ipify connections CANNOT be dialed with en0
+	ap := store.NewAvoidPolicy("T", en0.ID(), "api.ipify.org")
+	s.AppendPolicy(ap)
+	if bl := s.MakeBlacklist(t0); len(bl) != 1 {
+		t.Fatalf("Unexpected blacklist content: wanted [%s], found %+v", en0, bl)
 	}
 	if bl := s.MakeBlacklist(t1); len(bl) != 0 {
 		t.Fatalf("Unexpected blacklist content: wanted [], found %+v", bl)

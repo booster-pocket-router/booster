@@ -25,9 +25,12 @@ package store
 import (
 	"context"
 	"fmt"
+	"net"
 	"sync"
+	"time"
 
 	"github.com/booster-proj/booster/core"
+	"upspin.io/log"
 )
 
 // Store describes an entity that is able to store,
@@ -41,11 +44,11 @@ type Store interface {
 	Do(func(core.Source))
 }
 
-// A Policy defines wether a connection to `target` should
+// A Policy defines wether a connection to `address` should
 // be accepted by source `id`.
 type Policy interface {
 	ID() string
-	Accept(id, target string) bool
+	Accept(id, address string) bool
 }
 
 // A SourceStore is able to keep sources under a set of
@@ -85,34 +88,78 @@ func New(store Store) *SourceStore {
 // the ones `blacklisted`. The `blacklisted` list is populated with the sources
 // that cannot be accepted due to policy restrictions. The source is then
 // retriven from the protected storage.
-// If `bindHistory.record == true`, the source identifier returned for this target
+// If `bindHistory.record == true`, the source identifier returned for this address
 // is saved into `bindHistory.val`.
-func (ss *SourceStore) Get(ctx context.Context, target string, blacklisted ...core.Source) (core.Source, error) {
-	blacklisted = append(blacklisted, ss.MakeBlacklist(target)...)
+func (ss *SourceStore) Get(ctx context.Context, address string, blacklisted ...core.Source) (core.Source, error) {
+	address = TrimPort(address)
+
+	// Combine blacklist received with the one composed by
+	// the policies.
+	blacklisted = append(blacklisted, ss.MakeBlacklist(address)...)
+	log.Debug.Printf("SourceStore: Blacklist for %s: %v", address, blacklisted)
+
 	src, err := ss.protected.Get(ctx, blacklisted...)
 	if err != nil {
 		return src, err
 	}
 
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	ss.SaveBindHistory(ctx, src.ID(), address)
+
+	return src, nil
+}
+
+// SaveBindHistory saves the association of an address with a source. It
+// performs the operation only if it is required, as this is a time
+// consuming operation (potentially, due to DNS lookup).
+func (ss *SourceStore) SaveBindHistory(ctx context.Context, id, address string) {
+	// Save bind history only if required.
 	ss.bindHistory.Lock()
 	defer ss.bindHistory.Unlock()
 	if !ss.bindHistory.record {
-		return src, nil
+		return
 	}
 
 	if ss.bindHistory.val == nil {
 		ss.bindHistory.val = make(map[string]string)
 	}
 
-	ss.bindHistory.val[target] = src.ID()
-	return src, nil
+	// Find all addresses associated with `address`. First check if
+	// is is an IP address or an hostname. In the former case
+	// find an hostname pointing to this ip.
+	host := address
+	if ip := net.ParseIP(address); ip != nil {
+		// It is an IP
+		hosts, err := Resolver.LookupAddr(ctx, address)
+		if err != nil {
+			log.Error.Printf("SourceStore: SaveBindHistory error: %v", err)
+			return
+		}
+		if len(hosts) == 0 {
+			log.Error.Printf("SourceStore: SaveBindHistory error: no hosts associated with %s found", address)
+			return
+		}
+		// we just need one host, no matter which one.
+		host = hosts[0]
+	}
+
+	addrs, err := Resolver.LookupHost(ctx, host)
+	if err != nil {
+		log.Error.Printf("SourceStore: SaveBindHistory error: %v", err)
+		return
+	}
+
+	for _, v := range addrs {
+		ss.bindHistory.val[v] = id
+	}
 }
 
-// ShouldAccept takes `id` and `target`, iterates through the list of policies
+// ShouldAccept takes `id` and `address`, iterates through the list of policies
 // and returns false if the two inputs are not accepted by one of them. The
 // offending policy is also returned.
-// Returns true if no policy blocks `id` and `target`.
-func (ss *SourceStore) ShouldAccept(id, target string) (bool, Policy) {
+// Returns true if no policy blocks `id` and `address`.
+func (ss *SourceStore) ShouldAccept(id, address string) (bool, Policy) {
 	ss.policies.Lock()
 	defer ss.policies.Unlock()
 
@@ -120,8 +167,11 @@ func (ss *SourceStore) ShouldAccept(id, target string) (bool, Policy) {
 		return true, nil
 	}
 
+	// remove port from address if it is present
+	address = TrimPort(address)
 	for _, p := range ss.policies.val {
-		if ok := p.Accept(id, target); !ok {
+		ok := p.Accept(id, address)
+		if !ok {
 			return ok, p
 		}
 	}
@@ -129,10 +179,10 @@ func (ss *SourceStore) ShouldAccept(id, target string) (bool, Policy) {
 	return true, nil
 }
 
-// MakeBlacklist computes the list of blacklisted sources for `target`, i.e. the
-// sources that should not be used to perform a request to `target`, because there
+// MakeBlacklist computes the list of blacklisted sources for `address`, i.e. the
+// sources that should not be used to perform a request to `address`, because there
 // is one or more policies that do not accept them.
-func (ss *SourceStore) MakeBlacklist(target string) []core.Source {
+func (ss *SourceStore) MakeBlacklist(address string) []core.Source {
 	acc := make([]core.Source, 0, ss.Len())
 
 	// return immediately if there is no policy.
@@ -144,8 +194,9 @@ func (ss *SourceStore) MakeBlacklist(target string) []core.Source {
 		return acc
 	}
 
+	address = TrimPort(address)
 	ss.Do(func(src core.Source) {
-		if ok, _ := ss.ShouldAccept(src.ID(), target); !ok {
+		if ok, _ := ss.ShouldAccept(src.ID(), address); !ok {
 			acc = append(acc, src)
 		}
 	})
@@ -163,10 +214,7 @@ func (ss *SourceStore) Do(f func(core.Source)) {
 	ss.protected.Do(f)
 }
 
-// AppendPolicy appends `p` to the end of the list of sources. Remember
-// that the policyes are always applied in order, and the chain of checks
-// is interrupted as soon as a policy refutes to accept a source, i.e. the
-// policies that come after that are not executed.
+// AppendPolicy appends `p` to the end of the list of policies.
 func (ss *SourceStore) AppendPolicy(p Policy) error {
 	ss.policies.Lock()
 	defer ss.policies.Unlock()
@@ -184,6 +232,9 @@ func (ss *SourceStore) AppendPolicy(p Policy) error {
 
 	// Eventually append the new policy.
 	ss.policies.val = append(ss.policies.val, p)
+	if p.ID() == "stick" {
+		ss.RecordBindHistory()
+	}
 
 	return nil
 }
@@ -213,6 +264,10 @@ func (ss *SourceStore) DelPolicy(id string) error {
 	// avoid any possible memory leak in the underlying array.
 	ss.policies.val[j] = nil
 	ss.policies.val = append(ss.policies.val[:j], ss.policies.val[j+1:]...)
+	if id == "stick" {
+		ss.StopRecordingBindHistory()
+	}
+
 	return nil
 }
 
@@ -258,7 +313,7 @@ func (ss *SourceStore) GetSourcesSnapshot() []*DummySource {
 }
 
 // RecordBindHistory makes the store keep track of which source is
-// assigned to which target.
+// assigned to which address.
 func (ss *SourceStore) RecordBindHistory() {
 	ss.bindHistory.Lock()
 	defer ss.bindHistory.Unlock()
@@ -268,7 +323,7 @@ func (ss *SourceStore) RecordBindHistory() {
 }
 
 // StopRecordingBindHistory makes the store stop tracking which source is
-// assigned to which target. The old history, if any, is discarded.
+// assigned to which address. The old history, if any, is discarded.
 func (ss *SourceStore) StopRecordingBindHistory() {
 	ss.bindHistory.Lock()
 	defer ss.bindHistory.Unlock()
@@ -277,8 +332,8 @@ func (ss *SourceStore) StopRecordingBindHistory() {
 	ss.bindHistory.record = false
 }
 
-// QueryBindHistory queries the bindHistory for target.
-func (ss *SourceStore) QueryBindHistory(target string) (src string, ok bool) {
+// QueryBindHistory queries the bindHistory for address.
+func (ss *SourceStore) QueryBindHistory(address string) (src string, ok bool) {
 	ss.bindHistory.Lock()
 	defer ss.bindHistory.Unlock()
 
@@ -286,6 +341,6 @@ func (ss *SourceStore) QueryBindHistory(target string) (src string, ok bool) {
 		return
 	}
 
-	src, ok = ss.bindHistory.val[target]
+	src, ok = ss.bindHistory.val[address]
 	return
 }

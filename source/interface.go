@@ -62,7 +62,7 @@ func (i *Interface) SetMetricsExporter(exp MetricsExporter) {
 
 // ID implements the core.Source interface.
 func (i *Interface) ID() string {
-	return i.ifi.HardwareAddr.String()
+	return i.ifi.Name
 }
 
 // DialContext dials a connection of type `network` to `address`. If an error is
