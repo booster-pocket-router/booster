@@ -102,7 +102,7 @@ func TestAvoidPolicy(t *testing.T) {
 		t.Fatalf("Policy %s did not accept source %v for address %s", p.ID(), s1.ID(), t1)
 	}
 	if ok := p.Accept(s1.ID(), t0); !ok {
-		t.Fatalf("Policy %s did not source %v for address %s", p.ID(), s1.ID(), t0)
+		t.Fatalf("Policy %s did not accept source %v for address %s", p.ID(), s1.ID(), t0)
 	}
 	if ok := p.Accept(s1.ID(), t1); !ok {
 		t.Fatalf("Policy %s did not accept source %v for address %s", p.ID(), s1.ID(), t1)

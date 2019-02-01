@@ -173,7 +173,14 @@ func NewAvoidPolicy(issuer, sourceID, address string) *AvoidPolicy {
 
 // Accept implements Policy.
 func (p *AvoidPolicy) Accept(id, address string) bool {
-	if address == p.Address {
+	isIn := false
+	for _, v := range p.Addrs {
+		if address == v {
+			isIn = true
+			break
+		}
+	}
+	if isIn {
 		return id != p.SourceID
 	}
 	return true

@@ -128,13 +128,26 @@ func TestMakeBlacklist_ipify(t *testing.T) {
 			"23.21.121.219",
 		},
 	}
-	s.AppendPolicy(store.NewReservedPolicy("T", en0.ID(), "api.ipify.org"))
 
+	// ipify connections can only be dialed with en0
+	rp := store.NewReservedPolicy("T", en0.ID(), "api.ipify.org")
+	s.AppendPolicy(rp)
 	if bl := s.MakeBlacklist(t0); len(bl) != 1 {
 		t.Fatalf("Unexpected blacklist content: wanted [%s], found %+v", en4, bl)
 	}
 	if bl := s.MakeBlacklist(t1); len(bl) != 1 {
 		t.Fatalf("Unexpected blacklist content: wanted [%s], found %+v", en0, bl)
+	}
+	s.DelPolicy(rp.ID())
+
+	// ipify connections CANNOT be dialed with en0
+	ap := store.NewAvoidPolicy("T", en0.ID(), "api.ipify.org")
+	s.AppendPolicy(ap)
+	if bl := s.MakeBlacklist(t0); len(bl) != 1 {
+		t.Fatalf("Unexpected blacklist content: wanted [%s], found %+v", en0, bl)
+	}
+	if bl := s.MakeBlacklist(t1); len(bl) != 0 {
+		t.Fatalf("Unexpected blacklist content: wanted [], found %+v", bl)
 	}
 }
 
