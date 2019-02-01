@@ -25,7 +25,6 @@ package store
 import (
 	"context"
 	"fmt"
-	"net"
 	"sync"
 
 	"github.com/booster-proj/booster/core"
@@ -89,12 +88,16 @@ func New(store Store) *SourceStore {
 // If `bindHistory.record == true`, the source identifier returned for this address
 // is saved into `bindHistory.val`.
 func (ss *SourceStore) Get(ctx context.Context, address string, blacklisted ...core.Source) (core.Source, error) {
+	// Combine blacklist received with the one composed by
+	// the policies.
 	blacklisted = append(blacklisted, ss.MakeBlacklist(address)...)
+
 	src, err := ss.protected.Get(ctx, blacklisted...)
 	if err != nil {
 		return src, err
 	}
 
+	// Save bind history only if required.
 	ss.bindHistory.Lock()
 	defer ss.bindHistory.Unlock()
 	if !ss.bindHistory.record {
@@ -122,13 +125,10 @@ func (ss *SourceStore) ShouldAccept(id, address string) (bool, Policy) {
 	}
 
 	// remove port from address if it is present
-	host, _, err := net.SplitHostPort(address)
-	if err == nil {
-		address = host
-	}
-
+	address = TrimPort(address)
 	for _, p := range ss.policies.val {
-		if ok := p.Accept(id, address); !ok {
+		ok := p.Accept(id, address)
+		if !ok {
 			return ok, p
 		}
 	}

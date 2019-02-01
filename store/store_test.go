@@ -111,6 +111,33 @@ func TestMakeBlacklist(t *testing.T) {
 	}
 }
 
+func TestMakeBlacklist_ipify(t *testing.T) {
+	en0 := &mock{id: "en0"}
+	en4 := &mock{id: "en4"}
+	t0 := "50.19.247.198:443"
+	t1 := "host.com:443"
+
+	s := store.New(&storage{data: []core.Source{en0, en4}})
+	store.Resolver = resolver{
+		addrs: []string{
+			"50.16.248.221",
+			"50.19.247.198",
+			"107.22.215.20",
+			"54.243.123.39",
+			"54.204.36.156",
+			"23.21.121.219",
+		},
+	}
+	s.AppendPolicy(store.NewReservedPolicy("T", en0.ID(), "api.ipify.org"))
+
+	if bl := s.MakeBlacklist(t0); len(bl) != 1 {
+		t.Fatalf("Unexpected blacklist content: wanted [%s], found %+v", en4, bl)
+	}
+	if bl := s.MakeBlacklist(t1); len(bl) != 1 {
+		t.Fatalf("Unexpected blacklist content: wanted [%s], found %+v", en0, bl)
+	}
+}
+
 func TestShouldAccept(t *testing.T) {
 	s := store.New(&storage{})
 	id0 := "foo"

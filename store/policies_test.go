@@ -23,9 +23,15 @@ import (
 )
 
 type resolver struct {
+	// addresses to return
+	addrs []string
 }
 
 func (r resolver) LookupHost(ctx context.Context, host string) (addr []string, err error) {
+	if len(r.addrs) > 0 {
+		return r.addrs, nil
+	}
+
 	return []string{host}, nil
 }
 
@@ -73,8 +79,8 @@ func TestReservedPolicy(t *testing.T) {
 	if ok := p.Accept(s0.ID(), t1); ok {
 		t.Fatalf("Policy %s accepted source %v for address %s", p.ID(), s1.ID(), t1)
 	}
-	if ok := p.Accept(s1.ID(), t0); !ok {
-		t.Fatalf("Policy %s did not accept source %v for address %s", p.ID(), s1.ID(), t0)
+	if ok := p.Accept(s1.ID(), t0); ok {
+		t.Fatalf("Policy %s accepted source %v for address %s", p.ID(), s1.ID(), t0)
 	}
 	if ok := p.Accept(s1.ID(), t1); !ok {
 		t.Fatalf("Policy %s did not accept source %v for address %s", p.ID(), s1.ID(), t1)

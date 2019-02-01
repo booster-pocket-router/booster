@@ -109,10 +109,8 @@ func (p *BlockPolicy) Accept(id, address string) bool {
 }
 
 // ReservedPolicy is a Policy implementation. It is used to reserve a source
-// for a specific connection address. Note that this does not mean that the
-// others sources may not receive a connection to address, it just means that
-// `SourceID` will not accept any other connection exept the ones that go to
-// `Address`.
+// to be used only for connections to a defined address, and those connections
+// will not be assigned to any other source.
 type ReservedPolicy struct {
 	basePolicy
 	SourceID string `json:"reserved_source_id"`
@@ -136,15 +134,18 @@ func NewReservedPolicy(issuer, sourceID, address string) *ReservedPolicy {
 
 // Accept implements Policy.
 func (p *ReservedPolicy) Accept(id, address string) bool {
-	if id == p.SourceID {
-		for _, v := range p.Addrs {
-			if address == v {
-				return true
-			}
+	isIn := false
+	for _, v := range p.Addrs {
+		if address == v {
+			isIn = true
+			break
 		}
-		return false
 	}
-	return true
+	if isIn {
+		return id == p.SourceID
+	}
+
+	return id != p.SourceID
 }
 
 // AvoidPolicy is a Policy implementation. It is used to avoid giving
