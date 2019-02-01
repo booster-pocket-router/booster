@@ -160,7 +160,6 @@ func makePoliciesAvoidHandler(s *store.SourceStore) http.HandlerFunc {
 			return
 		}
 
-
 		p := store.NewAvoidPolicy(payload.Issuer, payload.SourceID, payload.Target)
 		p.Reason = payload.Reason
 		handlePolicy(s, p, w, r)

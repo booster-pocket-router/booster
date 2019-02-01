@@ -49,7 +49,9 @@ func TestGet(t *testing.T) {
 		Name: "p0",
 		AcceptFunc: func(id, target string) bool {
 			// Does not accept s0 trying to contact t0
-			return !(id == s0.ID() && target == t0)
+			t.Logf("AcceptFunc called with: id(%s) target(%s)", id, target)
+			trg := store.TrimPort(t0)
+			return !(id == s0.ID() && target == trg)
 		},
 	})
 
@@ -95,7 +97,9 @@ func TestMakeBlacklist(t *testing.T) {
 		Name: p0,
 		AcceptFunc: func(id, target string) bool {
 			// Does not accept s0 trying to contact t0
-			return !(id == s0.ID() && target == t0)
+			t.Logf("AcceptFunc called with: id(%s) target(%s)", id, target)
+			trg := store.TrimPort(t0)
+			return !(id == s0.ID() && target == trg)
 		},
 	})
 

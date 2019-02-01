@@ -16,9 +16,35 @@
 package store_test
 
 import (
-	"github.com/booster-proj/booster/store"
+	"context"
 	"testing"
+
+	"github.com/booster-proj/booster/store"
 )
+
+type resolver struct {
+}
+
+func (r resolver) LookupHost(ctx context.Context, host string) (addr []string, err error) {
+	return []string{host}, nil
+}
+
+func TestTrimPort(t *testing.T) {
+	tt := []struct {
+		in  string
+		out string
+	}{
+		{in: "foo:port", out: "foo"},
+		{in: "example.com:443", out: "example.com"},
+	}
+
+	for i, v := range tt {
+		addr := store.TrimPort(v.in)
+		if addr != v.out {
+			t.Fatalf("%d: unexpected address: wanted %s, found %s", i, v.out, addr)
+		}
+	}
+}
 
 func TestBlockPolicy(t *testing.T) {
 	s0 := &mock{id: "foo"}
@@ -34,83 +60,86 @@ func TestBlockPolicy(t *testing.T) {
 }
 
 func TestReservedPolicy(t *testing.T) {
+	store.Resolver = resolver{}
 	s0 := &mock{id: "foo"}
 	s1 := &mock{id: "bar"}
-	t0 := "host0:port"
-	t1 := "host1:port"
+	t0 := "host0"
+	t1 := "host1"
 
 	p := store.NewReservedPolicy("T", s0.ID(), t0)
 	if ok := p.Accept(s0.ID(), t0); !ok {
-		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s0.ID(), t0)
+		t.Fatalf("Policy %s did not accept source %v for address %s", p.ID(), s0.ID(), t0)
 	}
 	if ok := p.Accept(s0.ID(), t1); ok {
-		t.Fatalf("Policy %s accepted source %v for target %s", p.ID(), s1.ID(), t1)
+		t.Fatalf("Policy %s accepted source %v for address %s", p.ID(), s1.ID(), t1)
 	}
 	if ok := p.Accept(s1.ID(), t0); !ok {
-		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s1.ID(), t0)
+		t.Fatalf("Policy %s did not accept source %v for address %s", p.ID(), s1.ID(), t0)
 	}
 	if ok := p.Accept(s1.ID(), t1); !ok {
-		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s1.ID(), t1)
+		t.Fatalf("Policy %s did not accept source %v for address %s", p.ID(), s1.ID(), t1)
 	}
 }
 
 func TestAvoidPolicy(t *testing.T) {
+	store.Resolver = resolver{}
 	s0 := &mock{id: "foo"}
 	s1 := &mock{id: "bar"}
-	t0 := "host0:port"
-	t1 := "host1:port"
+	t0 := "host0"
+	t1 := "host1"
 
 	p := store.NewAvoidPolicy("T", s0.ID(), t0)
 	if ok := p.Accept(s0.ID(), t0); ok {
-		t.Fatalf("Policy %s accepted source %v for target %s", p.ID(), s0.ID(), t0)
+		t.Fatalf("Policy %s accepted source %v for address %s", p.ID(), s0.ID(), t0)
 	}
 	if ok := p.Accept(s0.ID(), t1); !ok {
-		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s1.ID(), t1)
+		t.Fatalf("Policy %s did not accept source %v for address %s", p.ID(), s1.ID(), t1)
 	}
 	if ok := p.Accept(s1.ID(), t0); !ok {
-		t.Fatalf("Policy %s did not source %v for target %s", p.ID(), s1.ID(), t0)
+		t.Fatalf("Policy %s did not source %v for address %s", p.ID(), s1.ID(), t0)
 	}
 	if ok := p.Accept(s1.ID(), t1); !ok {
-		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s1.ID(), t1)
+		t.Fatalf("Policy %s did not accept source %v for address %s", p.ID(), s1.ID(), t1)
 	}
 }
 
 func TestStickyPolicy(t *testing.T) {
+	store.Resolver = resolver{}
 	s0 := &mock{id: "foo"}
 	s1 := &mock{id: "bar"}
-	t0 := "host0:port"
-	t1 := "host1:port"
+	t0 := "host0"
+	t1 := "host1"
 
 	history := make(map[string]string)
-	p := store.NewStickyPolicy("T", func(target string) (src string, ok bool) {
-		src, ok = history[target]
+	p := store.NewStickyPolicy("T", func(address string) (src string, ok bool) {
+		src, ok = history[address]
 		return
 	})
 
 	if ok := p.Accept(s0.ID(), t0); !ok {
-		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s0.ID(), t0)
+		t.Fatalf("Policy %s did not accept source %v for address %s", p.ID(), s0.ID(), t0)
 	}
 	if ok := p.Accept(s1.ID(), t0); !ok {
-		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s1.ID(), t0)
+		t.Fatalf("Policy %s did not accept source %v for address %s", p.ID(), s1.ID(), t0)
 	}
 	if ok := p.Accept(s0.ID(), t1); !ok {
-		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s0.ID(), t1)
+		t.Fatalf("Policy %s did not accept source %v for address %s", p.ID(), s0.ID(), t1)
 	}
 	if ok := p.Accept(s1.ID(), t1); !ok {
-		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s1.ID(), t1)
+		t.Fatalf("Policy %s did not accept source %v for address %s", p.ID(), s1.ID(), t1)
 	}
 
 	history[t0] = s0.ID()
 	if ok := p.Accept(s0.ID(), t0); !ok {
-		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s0.ID(), t0)
+		t.Fatalf("Policy %s did not accept source %v for address %s", p.ID(), s0.ID(), t0)
 	}
 	if ok := p.Accept(s1.ID(), t0); ok {
-		t.Fatalf("Policy %s accepted source %v for target %s", p.ID(), s1.ID(), t0)
+		t.Fatalf("Policy %s accepted source %v for address %s", p.ID(), s1.ID(), t0)
 	}
 	if ok := p.Accept(s0.ID(), t1); !ok {
-		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s0.ID(), t1)
+		t.Fatalf("Policy %s did not accept source %v for address %s", p.ID(), s0.ID(), t1)
 	}
 	if ok := p.Accept(s1.ID(), t1); !ok {
-		t.Fatalf("Policy %s did not accept source %v for target %s", p.ID(), s1.ID(), t1)
+		t.Fatalf("Policy %s did not accept source %v for address %s", p.ID(), s1.ID(), t1)
 	}
 }
