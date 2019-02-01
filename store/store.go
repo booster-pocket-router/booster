@@ -25,9 +25,12 @@ package store
 import (
 	"context"
 	"fmt"
+	"net"
 	"sync"
+	"time"
 
 	"github.com/booster-proj/booster/core"
+	"upspin.io/log"
 )
 
 // Store describes an entity that is able to store,
@@ -88,28 +91,68 @@ func New(store Store) *SourceStore {
 // If `bindHistory.record == true`, the source identifier returned for this address
 // is saved into `bindHistory.val`.
 func (ss *SourceStore) Get(ctx context.Context, address string, blacklisted ...core.Source) (core.Source, error) {
+	address = TrimPort(address)
+
 	// Combine blacklist received with the one composed by
 	// the policies.
 	blacklisted = append(blacklisted, ss.MakeBlacklist(address)...)
+	log.Debug.Printf("SourceStore: Blacklist for %s: %v", address, blacklisted)
 
 	src, err := ss.protected.Get(ctx, blacklisted...)
 	if err != nil {
 		return src, err
 	}
 
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	ss.SaveBindHistory(ctx, src.ID(), address)
+
+	return src, nil
+}
+
+// SaveBindHistory saves the association of an address with a source. It
+// performs the operation only if it is required, as this is a time
+// consuming operation (potentially, due to DNS lookup).
+func (ss *SourceStore) SaveBindHistory(ctx context.Context, id, address string) {
 	// Save bind history only if required.
 	ss.bindHistory.Lock()
 	defer ss.bindHistory.Unlock()
 	if !ss.bindHistory.record {
-		return src, nil
+		return
 	}
 
 	if ss.bindHistory.val == nil {
 		ss.bindHistory.val = make(map[string]string)
 	}
 
-	ss.bindHistory.val[address] = src.ID()
-	return src, nil
+	// Find all addresses associated with `address`. First check if
+	// is is an IP address or an hostname. In the former case
+	// find an hostname pointing to this ip.
+	host := address
+	if ip := net.ParseIP(address); ip != nil {
+		// It is an IP
+		hosts, err := Resolver.LookupAddr(ctx, address)
+		if err != nil {
+			log.Error.Printf("SourceStore: SaveBindHistory error: %v", err)
+			return
+		}
+		if len(hosts) == 0 {
+			log.Error.Printf("SourceStore: SaveBindHistory error: no hosts associated with %s found", address)
+			return
+		}
+		// we just need one host, no matter which one.
+		host = hosts[0]
+	}
+
+	addrs, err := Resolver.LookupHost(ctx, host)
+	if err != nil {
+		log.Error.Printf("SourceStore: SaveBindHistory error: %v", err)
+		return
+	}
+
+	for _, v := range addrs {
+		ss.bindHistory.val[v] = id
+	}
 }
 
 // ShouldAccept takes `id` and `address`, iterates through the list of policies

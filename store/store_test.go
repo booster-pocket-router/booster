@@ -25,6 +25,45 @@ import (
 	"github.com/booster-proj/booster/store"
 )
 
+func TestSaveBindHistory(t *testing.T) {
+	ip0 := "192.168.0.61"
+	ip1 := "192.168.0.62:443"
+	ip2 := "192.168.0.63"
+	ip3 := "192.168.0.64"
+	addrs := []string{ip0, ip1, ip2}
+	store.Resolver = resolver{
+		host:  "some.host",
+		addrs: addrs,
+	}
+
+	s := store.New(&storage{})
+	s.RecordBindHistory()
+
+	s0 := &mock{id: "s0"}
+	s.SaveBindHistory(context.TODO(), s0.ID(), ip0)
+
+	for i, v := range addrs {
+		id, ok := s.QueryBindHistory(v)
+		if !ok {
+			t.Fatalf("%d: Bind history does not contain %s, but it should", i, v)
+		}
+		if id != s0.ID() {
+			t.Fatalf("%d: Bind history contains wrong address-id association: wanted id %s, found %s", i, s0.ID(), id)
+		}
+	}
+
+	id, ok := s.QueryBindHistory(ip3)
+	if ok {
+		t.Fatalf("Bind history contains ip %s: %s, put it should not", ip3, id)
+	}
+
+	s.StopRecordingBindHistory()
+	id, ok = s.QueryBindHistory(ip0)
+	if ok {
+		t.Fatalf("Bind history contains ip %s: %s, put it should not", ip0, id)
+	}
+}
+
 func TestGet(t *testing.T) {
 	s0 := &mock{id: "s0"}
 	s1 := &mock{id: "s1"}

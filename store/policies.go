@@ -23,7 +23,10 @@ import (
 )
 
 type HostResolver interface {
+	// Returns all ip addresses associated with `host`
 	LookupHost(ctx context.Context, host string) (addrs []string, err error)
+	// Returns at least an host associated with `addr`
+	LookupAddr(ctx context.Context, addr string) (hosts []string, err error)
 }
 
 var Resolver HostResolver = &net.Resolver{}

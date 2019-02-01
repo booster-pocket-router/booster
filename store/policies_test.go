@@ -25,14 +25,19 @@ import (
 type resolver struct {
 	// addresses to return
 	addrs []string
+	host  string
 }
 
-func (r resolver) LookupHost(ctx context.Context, host string) (addr []string, err error) {
+func (r resolver) LookupHost(ctx context.Context, host string) ([]string, error) {
 	if len(r.addrs) > 0 {
 		return r.addrs, nil
 	}
 
 	return []string{host}, nil
+}
+
+func (r resolver) LookupAddr(ctx context.Context, addr string) ([]string, error) {
+	return []string{r.host}, nil
 }
 
 func TestTrimPort(t *testing.T) {
