@@ -74,9 +74,6 @@ func makePoliciesDelHandler(s *store.SourceStore) http.HandlerFunc {
 			writeError(w, err, http.StatusNotFound)
 			return
 		}
-		if id == "stick" {
-			s.StopRecordingBindHistory()
-		}
 
 		w.WriteHeader(http.StatusOK)
 	}
@@ -119,7 +116,6 @@ func makePoliciesStickyHandler(s *store.SourceStore) http.HandlerFunc {
 			return
 		}
 
-		s.RecordBindHistory()
 		p := store.NewStickyPolicy(payload.Issuer, s.QueryBindHistory)
 		handlePolicy(s, p, w, r)
 	}

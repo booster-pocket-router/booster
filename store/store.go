@@ -214,10 +214,7 @@ func (ss *SourceStore) Do(f func(core.Source)) {
 	ss.protected.Do(f)
 }
 
-// AppendPolicy appends `p` to the end of the list of sources. Remember
-// that the policyes are always applied in order, and the chain of checks
-// is interrupted as soon as a policy refutes to accept a source, i.e. the
-// policies that come after that are not executed.
+// AppendPolicy appends `p` to the end of the list of policies.
 func (ss *SourceStore) AppendPolicy(p Policy) error {
 	ss.policies.Lock()
 	defer ss.policies.Unlock()
@@ -235,6 +232,9 @@ func (ss *SourceStore) AppendPolicy(p Policy) error {
 
 	// Eventually append the new policy.
 	ss.policies.val = append(ss.policies.val, p)
+	if p.ID() == "stick" {
+		ss.RecordBindHistory()
+	}
 
 	return nil
 }
@@ -264,6 +264,10 @@ func (ss *SourceStore) DelPolicy(id string) error {
 	// avoid any possible memory leak in the underlying array.
 	ss.policies.val[j] = nil
 	ss.policies.val = append(ss.policies.val[:j], ss.policies.val[j+1:]...)
+	if id == "stick" {
+		ss.StopRecordingBindHistory()
+	}
+
 	return nil
 }
 
