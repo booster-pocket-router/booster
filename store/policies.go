@@ -112,26 +112,28 @@ func (p *BlockPolicy) Accept(id, address string) bool {
 }
 
 // ReservedPolicy is a Policy implementation. It is used to reserve a source
-// to be used only for connections to a defined address, and those connections
-// will not be assigned to any other source.
+// to be used only for connections to a defined list of addresses, and those
+// connections will not be assigned to any other source.
 type ReservedPolicy struct {
 	basePolicy
 	SourceID string `json:"reserved_source_id"`
-	Address  string `json:"address"`
 }
 
-func NewReservedPolicy(issuer, sourceID, address string) *ReservedPolicy {
-	address = TrimPort(address)
+func NewReservedPolicy(issuer, sourceID string, hosts ...string) *ReservedPolicy {
+	addrs := []string{}
+	for _, v := range hosts {
+		address := TrimPort(v)
+		addrs = append(addrs, LookupAddress(address)...)
+	}
 	return &ReservedPolicy{
 		basePolicy: basePolicy{
-			Name:   fmt.Sprintf("reserve_%s_for_%s", sourceID, address),
+			Name:   fmt.Sprintf("reserve_%s", sourceID),
 			Issuer: issuer,
 			Code:   PolicyCodeReserve,
-			Desc:   fmt.Sprintf("source %v will only be used for connections to %s", sourceID, address),
-			Addrs:  LookupAddress(address),
+			Desc:   fmt.Sprintf("source %v will only be used for connections to %v", sourceID, addrs),
+			Addrs:  addrs,
 		},
 		SourceID: sourceID,
-		Address:  address,
 	}
 }
 
