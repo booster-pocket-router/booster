@@ -69,8 +69,9 @@ to the same target will be assigned to the same source
 ```
 ```
 POST /policies/reserve.json
--d {"source_id": "", "target": "", "issuer": "", "reason": ""}
-Apply reserve policy: source `source_id` will only be used for connections to `target`
+-d {"source_id": "", "hosts": [""], "issuer": "", "reason": ""}
+Apply reserve policy: source `source_id` will only be used for connections to `hosts`,
+where hosts is a list of hostnames or ip addresses.
 ```
 ```
 POST /policies/avoid.json
