@@ -112,8 +112,8 @@ func (p *BlockPolicy) Accept(id, address string) bool {
 }
 
 // ReservedPolicy is a Policy implementation. It is used to reserve a source
-// to be used only for connections to a defined address, and those connections
-// will not be assigned to any other source.
+// to be used only for connections to a defined list of addresses, and those
+// connections will not be assigned to any other source.
 type ReservedPolicy struct {
 	basePolicy
 	SourceID string `json:"reserved_source_id"`
