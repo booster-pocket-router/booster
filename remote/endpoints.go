@@ -121,10 +121,15 @@ func makePoliciesStickyHandler(s *store.SourceStore) http.HandlerFunc {
 	}
 }
 
+type ReservedPolicyInput struct {
+	PoliciesInput
+	Hosts []string `json:"hosts"`
+}
+
 func makePoliciesReserveHandler(s *store.SourceStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
-		var payload PoliciesInput
+		var payload ReservedPolicyInput
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			writeError(w, err, http.StatusBadRequest)
 			return
@@ -133,12 +138,12 @@ func makePoliciesReserveHandler(s *store.SourceStore) http.HandlerFunc {
 			writeError(w, fmt.Errorf("validation error: source_id cannot be empty"), http.StatusBadRequest)
 			return
 		}
-		if payload.Target == "" {
-			writeError(w, fmt.Errorf("validation error: target cannot be empty"), http.StatusBadRequest)
+		if len(payload.Hosts) == 0 {
+			writeError(w, fmt.Errorf("validation error: hosts cannot be empty list"), http.StatusBadRequest)
 			return
 		}
 
-		p := store.NewReservedPolicy(payload.Issuer, payload.SourceID, payload.Target)
+		p := store.NewReservedPolicy(payload.Issuer, payload.SourceID, payload.Hosts...)
 		p.Reason = payload.Reason
 		handlePolicy(s, p, w, r)
 	}
