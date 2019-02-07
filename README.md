@@ -43,47 +43,4 @@ bin/booster
 ```
 Note: get help with the `--help` flag.
 
-Once started, `booster` can be remotely controller through its public HTTP Json API. These are some of the routes available (full documentation coming soon):
-```
-GET /sources.json
-List of used sources
-```
-```
-GET /policies.json
-List of active policies
-```
-```
-DELETE /policies/{id}.json
-Remove policy `id`
-```
-```
-POST /policies/block.json
--d {"source_id": "", "issuer": "", "reason": ""}
-Apply block policy: source `source_id` will no longer be used
-```
-```
-POST /policies/sticky.json
--d {"issuer": "", "reason": ""}
-Apply sticky policy: once a source receives a connection to a target, the following connections 
-to the same target will be assigned to the same source
-```
-```
-POST /policies/reserve.json
--d {"source_id": "", "hosts": [""], "issuer": "", "reason": ""}
-Apply reserve policy: source `source_id` will only be used for connections to `hosts`,
-where hosts is a list of hostnames or ip addresses.
-```
-```
-POST /policies/avoid.json
--d {"source_id": "", "target": "", "issuer": "", "reason": ""}
-Apply reserve policy: source `source_id` will not be used for connections to `target`
-```
-```
-GET /metrics.json
-Forwards the request to a local prometheus api/v1/query endpoint, preserving headers,
-query parameters and request body
-```
-```
-GET /metrics
-List the metrics exposed by the server using prometheus export encoding
-```
+Once started, `booster` can be remotely controller through its public HTTP Json API. The documentation is available in the [Wiki](https://github.com/booster-proj/booster/wiki/API-Documentation).
