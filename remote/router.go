@@ -35,9 +35,8 @@ type BoosterInfo struct {
 	Commit    string `json:"commit"`
 	BuildTime string `json:"build_time"`
 
-	ProxyPort  int    `json:"proxy_port"`
-	ProxyProto string `json:"proxy_proto"`
-	PromPort   int    `json:"-"`
+	ProxyPort int `json:"proxy_port"`
+	PromPort  int `json:"-"`
 }
 
 var Info BoosterInfo = BoosterInfo{}
