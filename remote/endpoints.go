@@ -24,17 +24,19 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
+func makeHealthCheckHandler(info BoosterInfo) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
 
-	json.NewEncoder(w).Encode(struct {
-		Alive bool `json:"alive"`
-		BoosterInfo
-	}{
-		Alive:       true,
-		BoosterInfo: Info,
-	})
+		json.NewEncoder(w).Encode(struct {
+			Alive bool `json:"alive"`
+			BoosterInfo
+		}{
+			Alive:       true,
+			BoosterInfo: info,
+		})
+	}
 }
 
 func makeSourcesHandler(s *store.SourceStore) http.HandlerFunc {

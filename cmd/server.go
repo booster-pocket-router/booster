@@ -46,13 +46,6 @@ var serverCmd = &cobra.Command{
 	Use:   "server",
 	Short: "Start a booster server in the foreground",
 	Run: func(cmd *cobra.Command, args []string) {
-		remote.Info = remote.BoosterInfo{
-			Version:   Version,
-			Commit:    Commit,
-			BuildTime: BuildTime,
-			ProxyPort: pPort,
-		}
-
 		p, err := proxy.NewSOCKS5()
 		if err != nil {
 			log.Fatal(err)
@@ -71,6 +64,13 @@ var serverCmd = &cobra.Command{
 		router := remote.NewRouter()
 		router.Store = rs
 		router.MetricsProvider = exp
+		router.Info = remote.BoosterInfo{
+			Version:   Version,
+			Commit:    Commit,
+			BuildTime: BuildTime,
+			ProxyPort: pPort,
+		}
+
 		router.SetupRoutes()
 		r := remote.New(router)
 
