@@ -26,19 +26,19 @@ import (
 
 var (
 	// Log configuration
-	verbose     bool
-	externalLog bool
+	verbose  bool
+	cleanLog bool
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "booster",
-	Short: "",
-	Long:  ``,
-
+	Short: "Handle a booster server",
+	Long: `Use booster to start a server that will allow to build a powerfull multihomed system.
+Use its SOCKS5 proxy to pipe your network traffic though booster's balancing techniques.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		// Setup logger
-		setupLogger(verbose, externalLog)
+		setupLogger(verbose, cleanLog)
 
 	},
 }
@@ -54,34 +54,34 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().BoolVar(&verbose, "verbose", false, "If set, makes the logger print also debug messages")
-	rootCmd.PersistentFlags().BoolVar(&externalLog, "external-log", false, "If set, assumes that the loggin is handled by a third party entity")
+	rootCmd.PersistentFlags().BoolVar(&cleanLog, "clean-log", false, "If set, assumes that the loggin is handled by a third party entity")
 }
 
-func setupLogger(verbose bool, external bool) {
+func setupLogger(verbose bool, clean bool) {
 	level := log.InfoLevel
 	if verbose {
 		log.SetLevel("debug")
 		level = log.DebugLevel
 	}
-	if external {
-		log.SetOutput(nil)                     // disable "local" logging
-		log.Register(newExternalLogger(level)) // enable "remote" (snapcraft's daemon handled logger usually) logging
+	if clean {
+		log.SetOutput(nil)             // disable "local" logging
+		log.Register(newLogger(level)) // enable "remote" (snapcraft's daemon handled logger usually) logging
 	}
 }
 
-type externalLogger struct {
+type logger struct {
 	defaultLogger log.Logger
 	level         log.Level
 }
 
-func newExternalLogger(level log.Level) *externalLogger {
-	return &externalLogger{
+func newLogger(level log.Level) *logger {
+	return &logger{
 		level:         level,
 		defaultLogger: stdLog.New(os.Stderr, "", 0), // Do not add date/time information
 	}
 }
 
-func (l *externalLogger) Log(level log.Level, msg string) {
+func (l *logger) Log(level log.Level, msg string) {
 	if level < l.level {
 		return
 	}
@@ -89,5 +89,5 @@ func (l *externalLogger) Log(level log.Level, msg string) {
 	l.defaultLogger.Println(msg)
 }
 
-func (l *externalLogger) Flush() {
+func (l *logger) Flush() {
 }

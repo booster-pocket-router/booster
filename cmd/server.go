@@ -1,4 +1,4 @@
-// Copyright © 2019 KIM KeepInMind GmbH/srl
+// Copyright © 2018 KIM KeepInMind GmbH/srl
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -38,14 +38,13 @@ var (
 	pPort int
 
 	// API configuration
-	apiPort  int
+	apiPort int
 )
 
 // serverCmd represents the server command
 var serverCmd = &cobra.Command{
 	Use:   "server",
-	Short: "",
-	Long:  ``,
+	Short: "Start a booster server in the foreground",
 	Run: func(cmd *cobra.Command, args []string) {
 		remote.Info = remote.BoosterInfo{
 			Version:   Version,
