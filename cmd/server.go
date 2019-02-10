@@ -39,7 +39,6 @@ var (
 
 	// API configuration
 	apiPort  int
-	promPort int
 )
 
 // serverCmd represents the server command
@@ -128,7 +127,6 @@ func init() {
 
 	// API configuration
 	serverCmd.Flags().IntVar(&apiPort, "api-port", 7764, "API server listening port")
-	serverCmd.Flags().IntVar(&promPort, "prometheus-port", 9090, "Port of a local prometheus server. Used for forwarding")
 }
 
 func captureSignals(cancel context.CancelFunc) {
