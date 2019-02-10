@@ -13,6 +13,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+// Package dialer provides a connection dialer that opens new
+// `net.Conn`s using the sources provided by its Balancer.
 package dialer
 
 import (
