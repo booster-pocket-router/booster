@@ -16,12 +16,9 @@
 package remote
 
 import (
-	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 
 	"github.com/booster-proj/booster/store"
 	"github.com/gorilla/mux"
@@ -181,37 +178,6 @@ func handlePolicy(s *store.SourceStore, p store.Policy, w http.ResponseWriter, r
 	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(p)
-}
-
-func metricsForwardHandler(w http.ResponseWriter, r *http.Request) {
-	URL, _ := url.Parse(r.URL.String())
-	URL.Scheme = "http"
-	URL.Host = fmt.Sprintf("localhost:%d", Info.PromPort)
-	URL.Path = "api/v1/query"
-
-	req, err := http.NewRequest(r.Method, URL.String(), r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
-		return
-	}
-
-	req.Header = r.Header
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
-		return
-	}
-
-	gzipR, err := gzip.NewReader(resp.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	io.Copy(w, gzipR)
 }
 
 func writeError(w http.ResponseWriter, err error, code int) {

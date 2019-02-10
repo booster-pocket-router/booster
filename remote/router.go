@@ -36,7 +36,6 @@ type BoosterInfo struct {
 	BuildTime string `json:"build_time"`
 
 	ProxyPort int `json:"proxy_port"`
-	PromPort  int `json:"-"`
 }
 
 var Info BoosterInfo = BoosterInfo{}
@@ -78,7 +77,6 @@ func (r *Router) SetupRoutes() {
 	}
 	if handler := r.MetricsProvider; handler != nil {
 		router.Handle("/metrics", handler)
-		router.HandleFunc("/metrics.json", metricsForwardHandler)
 	}
 	router.Use(loggingMiddleware)
 }

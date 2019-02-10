@@ -53,7 +53,6 @@ var serverCmd = &cobra.Command{
 			Commit:    Commit,
 			BuildTime: BuildTime,
 			ProxyPort: pPort,
-			PromPort:  promPort,
 		}
 
 		p, err := proxy.NewSOCKS5()
