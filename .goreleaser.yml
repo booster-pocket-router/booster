@@ -36,7 +36,7 @@ snapcraft:
   # we live in tweetspace and your description wants to look good in the snap
   # store.
   description: |
-    When **booster** spawns, it identifies the network interfaces available in the system that provide an active internet connection. It then starts a proxy server that speaks either **socks5** or **http**. According to some particular **strategy**, the server is able to **distribute** the incoming network traffic across the network interfaces collected.
+    When **booster** spawns, it identifies the network interfaces available in the system that provide an active internet connection. It then starts a **socks5** proxy server which, according to some particular **strategy**, it is able to **distribute** the incoming network traffic across the network interfaces collected.
     Source code is located at https://github.com/booster-proj/booster.
 
   grade: stable
@@ -46,5 +46,5 @@ snapcraft:
     booster:
       plugs: [network, network-bind]
       daemon: simple
-      args: --external-log
+      args: --clean-log
       
