@@ -13,7 +13,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package booster
+// Package dialer provides a connection dialer that opens new
+// `net.Conn`s using the sources provided by its Balancer.
+// This is the core, or most high level component of the entire
+// library, as it leverages the power of the other packages to
+// provide a very simple interface that can be reused by other
+// components.
+package dialer
 
 import (
 	"context"

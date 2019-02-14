@@ -35,9 +35,7 @@ type BoosterInfo struct {
 	Commit    string `json:"commit"`
 	BuildTime string `json:"build_time"`
 
-	ProxyPort  int    `json:"proxy_port"`
-	ProxyProto string `json:"proxy_proto"`
-	PromPort   int    `json:"-"`
+	ProxyPort int `json:"proxy_port"`
 }
 
 var Info BoosterInfo = BoosterInfo{}
@@ -50,6 +48,7 @@ type Router struct {
 	r *mux.Router
 
 	Store           *store.SourceStore
+	Info            BoosterInfo
 	MetricsProvider http.Handler
 }
 
@@ -65,7 +64,7 @@ func NewRouter() *Router {
 // properly.
 func (r *Router) SetupRoutes() {
 	router := r.r
-	router.HandleFunc("/health.json", healthCheckHandler)
+	router.HandleFunc("/health.json", makeHealthCheckHandler(r.Info))
 	if store := r.Store; store != nil {
 		router.HandleFunc("/sources.json", makeSourcesHandler(store))
 
@@ -79,7 +78,6 @@ func (r *Router) SetupRoutes() {
 	}
 	if handler := r.MetricsProvider; handler != nil {
 		router.Handle("/metrics", handler)
-		router.HandleFunc("/metrics.json", metricsForwardHandler)
 	}
 	router.Use(loggingMiddleware)
 }

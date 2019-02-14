@@ -11,14 +11,13 @@ gofiles = $(shell ( cd $(CURDIR) && find . -iname \*.go ))
 
 arch = "$(if $(GOARCH),_$(GOARCH)/,/)"
 bind = "$(CURDIR)/bin/$(GOOS)$(arch)"
-go = $(env GO111MODULE=on go)
 
 .PHONY: all
 all: booster
 
 .PHONY: booster
 booster:
-	$Q go build $(if $V,-v) -o $(bind)/booster $(VERSION_FLAGS) $(CURDIR)/cmd/booster
+	$Q go build $(if $V,-v) -o $(bind)/booster $(VERSION_FLAGS) main.go
 
 .PHONY: clean
 clean:
