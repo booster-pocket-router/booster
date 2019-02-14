@@ -5,15 +5,19 @@ builds:
   - 
     env:
       - GO111MODULE=on
-    main: cmd/booster/main.go
+    main: main.go
     binary: booster
     goos:
       - darwin
       - linux
+      - freebsd
+      - netbsd
+      - openbsd
     goarch:
       - amd64
       - 386
       - arm
+      - arm64
     goarm:
       - 6
       - 7
