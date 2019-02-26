@@ -12,7 +12,6 @@ builds:
       - linux
       - freebsd
       - netbsd
-      - openbsd
     goarch:
       - amd64
       - 386
