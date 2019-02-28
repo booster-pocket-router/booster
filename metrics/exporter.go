@@ -45,12 +45,19 @@ var (
 		Name:      "select_source_total",
 		Help:      "Number of times a source was chosen",
 	}, []string{"source", "target"})
+
+	countConn = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "open_conn_count",
+		Help:      "Number of open connections",
+	}, []string{"source", "target"})
 )
 
 func init() {
 	prometheus.MustRegister(sendBytes)
 	prometheus.MustRegister(receiveBytes)
 	prometheus.MustRegister(selectSource)
+	prometheus.MustRegister(countConn)
 }
 
 // Exporter can be used to both capture and serve metrics.
@@ -81,4 +88,8 @@ func (exp *Exporter) SendDataFlow(labels map[string]string, data *source.DataFlo
 // chosen.
 func (exp *Exporter) IncSelectedSource(labels map[string]string) {
 	selectSource.With(prometheus.Labels(labels)).Inc()
+}
+
+func (exp *Exporter) CountOpenConn(labels map[string]string, val int) {
+	countConn.With(prometheus.Labels(labels)).Add(float64(val))
 }

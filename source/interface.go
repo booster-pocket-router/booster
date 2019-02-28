@@ -26,10 +26,11 @@ import (
 type DialHook func(ref, network, address string, err error)
 
 // MetricsExporter is the entity used to send data tranmission
-// information to an entity that is supposed to persist or
-// handle the data accordingly.
+// information and connection count to an entity that is supposed
+// to persist or handle the data accordingly.
 type MetricsExporter interface {
 	SendDataFlow(labels map[string]string, data *DataFlow)
+	CountOpenConn(labels map[string]string, inc int)
 }
 
 // Interface is a wrapper around net.Interface and
@@ -92,20 +93,21 @@ func (i *Interface) DialContext(ctx context.Context, network, address string) (n
 // OnClose function is called.
 func (i *Interface) Follow(conn net.Conn) net.Conn {
 	wconn := &Conn{Conn: conn}
+	labels := map[string]string{
+		"source": i.ID(),
+		"target": conn.RemoteAddr().String(),
+	}
+
+	i.SendCountOpenConn(labels, 1)
 	wconn.OnClose = func() {
 		i.conns.Del(wconn)
+		i.SendCountOpenConn(labels, -1)
 	}
 	wconn.OnRead = func(data *DataFlow) {
-		i.SendMetrics(map[string]string{
-			"source": i.ID(),
-			"target": conn.RemoteAddr().String(),
-		}, data)
+		i.SendDataFlow(labels, data)
 	}
 	wconn.OnWrite = func(data *DataFlow) {
-		i.SendMetrics(map[string]string{
-			"source": i.ID(),
-			"target": conn.RemoteAddr().String(),
-		}, data)
+		i.SendDataFlow(labels, data)
 	}
 	if i.conns == nil {
 		i.conns = &conns{}
@@ -116,9 +118,20 @@ func (i *Interface) Follow(conn net.Conn) net.Conn {
 	return wconn
 }
 
-// SendMetrics sends the data using the Interface's MetricsExporter.
+func (i *Interface) SendCountOpenConn(labels map[string]string, inc int) {
+	if i.metrics.exporter == nil {
+		return
+	}
+
+	i.metrics.Lock()
+	defer i.metrics.Unlock()
+
+	i.metrics.exporter.CountOpenConn(labels, inc)
+}
+
+// SendDataFlow sends the transmission data using the Interface's MetricsExporter.
 // It is safe to use by multiple goroutines.
-func (i *Interface) SendMetrics(labels map[string]string, data *DataFlow) {
+func (i *Interface) SendDataFlow(labels map[string]string, data *DataFlow) {
 	if i.metrics.exporter == nil {
 		return
 	}
