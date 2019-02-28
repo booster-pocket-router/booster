@@ -19,6 +19,7 @@ import (
 	"context"
 	"net"
 	"sync"
+	"time"
 )
 
 // DialHook describes the function used to notify about
@@ -31,6 +32,7 @@ type DialHook func(ref, network, address string, err error)
 type MetricsExporter interface {
 	SendDataFlow(labels map[string]string, data *DataFlow)
 	CountOpenConn(labels map[string]string, inc int)
+	AddLatency(labels map[string]string, d time.Duration)
 }
 
 // Interface is a wrapper around net.Interface and
@@ -98,15 +100,34 @@ func (i *Interface) Follow(conn net.Conn) net.Conn {
 		"target": conn.RemoteAddr().String(),
 	}
 
+	// TODO: in order to capture the latency metric, we have to ensure
+	// that ww know which how's the data flow going. We can make some
+	// assumptions on that.
+	// Note that it is better to avoid sending wrong metrics, just
+	// send them when we're sure that they're valid.
+
+	started := false
+	received := false
+
+	var t0 time.Time
 	i.SendCountOpenConn(labels, 1)
 	wconn.OnClose = func() {
 		i.conns.Del(wconn)
 		i.SendCountOpenConn(labels, -1)
 	}
 	wconn.OnRead = func(data *DataFlow) {
+		if started && !received {
+			received = true
+			d := time.Since(t0)
+			i.SendAddLatency(labels, d)
+		}
 		i.SendDataFlow(labels, data)
 	}
 	wconn.OnWrite = func(data *DataFlow) {
+		if !started {
+			started = true
+			t0 = time.Now()
+		}
 		i.SendDataFlow(labels, data)
 	}
 	if i.conns == nil {
@@ -116,6 +137,17 @@ func (i *Interface) Follow(conn net.Conn) net.Conn {
 	i.conns.Add(wconn)
 
 	return wconn
+}
+
+func (i *Interface) SendAddLatency(labels map[string]string, d time.Duration) {
+	if i.metrics.exporter == nil {
+		return
+	}
+
+	i.metrics.Lock()
+	defer i.metrics.Unlock()
+
+	i.metrics.exporter.AddLatency(labels, d)
 }
 
 func (i *Interface) SendCountOpenConn(labels map[string]string, inc int) {
