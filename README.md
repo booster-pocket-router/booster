@@ -22,6 +22,12 @@ Having problems downloading/uploading multimedia over the Internet. For example 
 
 Follow this usecase's progress on [this](https://github.com/booster-proj/booster/issues/42) issue.
 
+#### Developers & designers
+That want to get involved! You're very welcome! :D
+
+## How does it work?
+
+
 ## Installation
 *(Windows is not yet supported)*
 #### Binary
