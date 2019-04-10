@@ -22,11 +22,11 @@ Having problems downloading/uploading data over the Internet. For example when y
 
 Follow this usecase's progress on [this](https://github.com/booster-proj/booster/issues/42) issue.
 
-#### Developers & designers
-That want to get involved! You're very welcome! :D
+#### Creative people
+That want to get involved, have some feedback, knows something that might be helpful.. in any case you're very welcome! :D
 
 ## How does it work?
-
+In short words, when `booster` spawns, it identifies the network interfaces available in the system that provide an active internet connection. It then starts a socks5 proxy server. According to some particular strategy (still not configurable), and a set of **policies** (configurable), the server is able to **distribute** the incoming network traffic across the network interfaces collected.
 
 ## Installation
 *(Windows is not yet supported)*
@@ -48,9 +48,7 @@ make test # Test
 make # Build
 ```
 ## Usage
-Recap: when `booster` spawns, it identifies the network interfaces available in the system that provide an active internet connection. It then starts a **socks5** proxy server. According to some particular **strategy** (still not configurable), and a set of **policies** (configurable), the server is able to **distribute** the incoming network traffic across the network interfaces collected.
-
-Note that `booster` runs as daemon when installed through `snap`, otherwise you'll have to start it manually:
+`booster` runs as daemon when installed through `snap`, otherwise you'll have to start it manually:
 ``` bash
 bin/booster
 ```
