@@ -46,7 +46,7 @@ make # Build
 ## Usage
 `booster` runs as daemon when installed through `snap`, otherwise you'll have to start it manually:
 ``` bash
-bin/booster
+bin/booster server
 ```
 Note: get help with the `--help` flag.
 
