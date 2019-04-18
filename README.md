@@ -19,7 +19,7 @@ Having problems downloading/uploading data over the Internet. For example when y
 `booster` already shows benefits for solving this usecase: without `booster` our offices WIFI's download speed reaches [**~34Mbps**](https://www.speedtest.net/result/7783615417), but **with booster**, using both @philip's and my phone's mobile network connection we managed to obtain [**~155Mbps**](https://www.speedtest.net/result/7777990270)! :tada: (issue [#42](https://github.com/booster-proj/booster/issues/42)).
 
 #### Creative people
-That want to get involved, have some feedback, knows something that might be helpful.. in any case you're very welcome! :D
+That want to get involved, have some feedback, know something that might be helpful.. in any case you're very welcome! 😊
 
 ## How does it work?
 In short words, when `booster` spawns, it identifies the network interfaces available in the system that provide an active internet connection. It then starts a socks5 proxy server. According to some particular strategy (still not configurable), and a set of policies (configurable), the server is able to distribute the incoming network traffic across the network interfaces collected.
