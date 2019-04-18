@@ -18,7 +18,7 @@ Follow this usecase's the progress on [this](https://github.com/booster-proj/boo
 #### Travellers/Slow ADLS owners
 Having problems downloading/uploading data over the Internet. For example when you find yourself at your friend's place, you want to watch a movie together but the ADSL at his/her home is too slow. With `booster` we can bond the ADSL, both your and your friend's LTE networks, apply rules on how the different sources are drained, and provide a faster network access point.
 
-`booster` already shows benefits for solving this usecase: without `booster` our offices WIFI's download speed reaches [**~34Mbps**](https://www.speedtest.net/result/7783615417), but **with booster**, using both @philip's and my phone's mobile network connection we managed to obtain [**155Mbps**](https://www.speedtest.net/result/7777990270)! :tada:
+`booster` already shows benefits for solving this usecase: without `booster` our offices WIFI's download speed reaches [**~34Mbps**](https://www.speedtest.net/result/7783615417), but **with booster**, using both @philip's and my phone's mobile network connection we managed to obtain [**~155Mbps**](https://www.speedtest.net/result/7777990270)! :tada:
 
 Follow this usecase's progress on [this](https://github.com/booster-proj/booster/issues/42) issue.
 
