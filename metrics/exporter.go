@@ -19,6 +19,7 @@ package metrics
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/booster-proj/booster/source"
 	"github.com/prometheus/client_golang/prometheus"
@@ -45,12 +46,26 @@ var (
 		Name:      "select_source_total",
 		Help:      "Number of times a source was chosen",
 	}, []string{"source", "target"})
+
+	countConn = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "open_conn_count",
+		Help:      "Number of open connections",
+	}, []string{"source", "target"})
+
+	addLatency = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "conn_latency_ms",
+		Help:      "Latency value measured in milliseconds",
+	}, []string{"source", "target"})
 )
 
 func init() {
 	prometheus.MustRegister(sendBytes)
 	prometheus.MustRegister(receiveBytes)
 	prometheus.MustRegister(selectSource)
+	prometheus.MustRegister(countConn)
+	prometheus.MustRegister(addLatency)
 }
 
 // Exporter can be used to both capture and serve metrics.
@@ -77,8 +92,20 @@ func (exp *Exporter) SendDataFlow(labels map[string]string, data *source.DataFlo
 	}
 }
 
-// INcSelectedSource is used to update the number of times a source was
+// IncSelectedSource is used to update the number of times a source was
 // chosen.
 func (exp *Exporter) IncSelectedSource(labels map[string]string) {
 	selectSource.With(prometheus.Labels(labels)).Inc()
+}
+
+// CountOpenConn is used to updated the number of open connections created
+// through booster sources.
+func (exp *Exporter) CountOpenConn(labels map[string]string, val int) {
+	countConn.With(prometheus.Labels(labels)).Add(float64(val))
+}
+
+// AddLatency is used to update the latency of the connections opened.
+func (exp *Exporter) AddLatency(labels map[string]string, d time.Duration) {
+	ms := float64(d / 1000000)
+	addLatency.With(prometheus.Labels(labels)).Add(ms)
 }
