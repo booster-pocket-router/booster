@@ -3,6 +3,7 @@
 [![Build Status](https://travis-ci.org/booster-proj/booster.svg?branch=master)](https://travis-ci.org/booster-proj/booster)
 [![Go Report Card](https://goreportcard.com/badge/github.com/booster-proj/booster)](https://goreportcard.com/report/github.com/booster-proj/booster)
 [![Release](https://img.shields.io/github/release/booster-proj/booster.svg)](https://github.com/booster-proj/booster/releases/latest)
+[![booster](https://snapcraft.io/booster/badge.svg)](https://snapcraft.io/booster)
 
 ## Abstract
 While more and more people today have a fast Internet connection, there are plenty of other people that do not. The aim of this project is to create a solution that combines multiple Internet access points (LTE, ADSL) into one single tunable network connection.
