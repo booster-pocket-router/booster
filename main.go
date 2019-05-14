@@ -11,36 +11,70 @@ import (
 )
 
 var echo = flag.Bool("echo", false, "Echo packets received back to TUN")
-const ipv4A = "10.12.44.16"
+var redirect = flag.Bool("redirect", false, "Redirect here ALL network traffic")
+var gw = flag.String("gw", "10.12.44.16", "IP address that will be assigned to the TUN device")
 
 type Iff struct {
-	wIff *water.Interface
-	netIff *net.Interface
-	SrcAddr string
-	DstAddr string
-}
-
-func (i *Iff) Up(src, dest string) error {
-	return exec.Command("ifconfig", i.Name(), src, dest, "up").Run()
-}
-
-func (i *Iff) Read(p []byte) (int, error) {
-	return i.wIff.Read(p)
-}
-
-func (i *Iff) Write(p []byte) (int, error) {
-	return i.wIff.Write(p)
-}
-
-func (i *Iff) Name() string {
-	return i.wIff.Name()
+	*water.Interface
 }
 
 func (i *Iff) MTU() int {
-	return i.netIff.MTU
+	netIff, err := net.InterfaceByName(i.Name())
+	if err != nil {
+		return -1
+	}
+	return netIff.MTU
 }
 
-func TunDev() (*Iff, error) {
+type IfconfigCmd struct {}
+
+func (c IfconfigCmd) Name() string {
+	return "ifconfig"
+}
+
+func (c IfconfigCmd) Up(name, dst, gw string) *exec.Cmd {
+	return exec.Command(c.Name(), name, gw, dst, "up")
+}
+
+type RouteCmd struct {}
+
+func (c RouteCmd) Name() string {
+	return "route"
+}
+
+func (c RouteCmd) Add(dst, gw string) *exec.Cmd {
+	return exec.Command(c.Name(), "-n", "add", dst, gw)
+}
+
+func (c RouteCmd) Del(dst, gw string) *exec.Cmd {
+	return exec.Command(c.Name(), "-n", "del", dst, gw)
+}
+
+// Batch of:
+// sudo route -n add 0/1 10.12.44.16
+// sudo route -n add 128.0/1 10.12.44.16
+// Tries to rollback in case of problems.
+func (c RouteCmd) RedirectAll(gw string) error {
+	net1 := "0/1"
+	net2 := "128.0/1"
+	rollback := func() {
+		// We need to cleanup only if the second
+		// command fails.
+		c.Del(net1, gw).Run()
+	}
+
+	if err := c.Add(net1, gw).Run(); err != nil {
+		return err
+	}
+	if err := c.Add(net2, gw).Run(); err != nil {
+		rollback()
+		return err
+	}
+
+	return nil
+}
+
+func TUN() (*Iff, error) {
 	// Interface is not persistent
 	wIff, err := water.New(water.Config{
 		DeviceType: water.TUN,
@@ -49,21 +83,15 @@ func TunDev() (*Iff, error) {
 		return nil, err
 	}
 
-	netIff, err := net.InterfaceByName(wIff.Name())
-	if err != nil {
-		return nil, err
-	}
-
 	return &Iff{
-		wIff: wIff,
-		netIff: netIff,
+		Interface: wIff,
 	}, nil
 }
 
 func main() {
 	flag.Parse()
 
-	iff, err := TunDev()
+	iff, err := TUN()
 	if err != nil {
 		panic(err)
 	}
@@ -71,9 +99,19 @@ func main() {
 	fmt.Printf("Successfully attached to TUN device: %s\n", iff.Name())
 	fmt.Printf("MTU: %d\n", iff.MTU())
 
+	ifconfig := IfconfigCmd{}
+	route := RouteCmd{}
+
 	// Bring the interface UP
-	if err := iff.Up(ipv4A, ipv4A); err != nil {
+	if err := ifconfig.Up(iff.Name(), *gw, *gw).Run(); err != nil {
 		panic(err)
+	}
+
+	// Redirect all traffic here if required
+	if *redirect {
+		if err := route.RedirectAll(*gw); err != nil {
+			panic(err)
+		}
 	}
 
 	packet := make([]byte, iff.MTU())
