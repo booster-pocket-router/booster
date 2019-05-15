@@ -15,8 +15,9 @@ import (
 )
 
 var echo = flag.Bool("echo", false, "Echo packets received back to TUN")
-var redirect = flag.Bool("redirect", false, "Redirect here ALL network traffic")
-var gw = flag.String("gw", "10.12.44.16", "IP address that will be assigned to the TUN device")
+
+const gwIn = "10.12.44.10"
+const gwOut = "10.12.44.20"
 
 type Iff struct {
 	*water.Interface
@@ -68,30 +69,6 @@ func (c Route) Del(dst, gw string) *exec.Cmd {
 	return exec.Command(c.Name(), "-n", "del", dst, gw)
 }
 
-// Batch of:
-// sudo route -n add 0/1 10.12.44.16
-// sudo route -n add 128.0/1 10.12.44.16
-// Tries to rollback in case of problems.
-func (c Route) RedirectAll(gw string) error {
-	net1 := "0/1"
-	net2 := "128.0/1"
-	rollback := func() {
-		// We need to cleanup only if the second
-		// command fails.
-		c.Del(net1, gw).Run()
-	}
-
-	if err := c.Add(net1, gw).Run(); err != nil {
-		return err
-	}
-	if err := c.Add(net2, gw).Run(); err != nil {
-		rollback()
-		return err
-	}
-
-	return nil
-}
-
 func CheckPermissions() error {
 	u, err := user.Current()
 	if err != nil {
@@ -109,46 +86,49 @@ func main() {
 		panic(err)
 	}
 
-	iff, err := TUN()
+	tunIn, err := TUN()
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("Successfully attached to TUN device: %s (MTU: %d)\n", tunIn.Name(), tunIn.MTU())
 
-	fmt.Printf("Successfully attached to TUN device: %s\n", iff.Name())
-	fmt.Printf("MTU: %d\n", iff.MTU())
+	tunOut, err := TUN()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Successfully attached to TUN device: %s (MTU: %d)\n", tunOut.Name(), tunOut.MTU())
 
 	ifconfig := Ifconfig{}
-	route := Route{}
-
-	// Bring the interface UP
-	if err := ifconfig.Up(iff.Name(), *gw, *gw).Run(); err != nil {
+	if err := ifconfig.Up(tunIn.Name(), gwIn, gwIn).Run(); err != nil {
+		panic(err)
+	}
+	if err := ifconfig.Up(tunOut.Name(), gwOut, gwOut).Run(); err != nil {
 		panic(err)
 	}
 
-	// Redirect all traffic here if required
-	if *redirect {
-		if err := route.RedirectAll(*gw); err != nil {
-			panic(err)
-		}
-	}
-
-	packet := make([]byte, iff.MTU())
+	s := max(tunIn.MTU(), tunOut.MTU())
+	p := make([]byte, s)
 	for {
-		n, err := iff.Read(packet)
+		n, err := tunIn.Read(p)
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Printf("Packet received: % x\n", packet[:n])
+		log.Printf("Packet received: % x\n", p[:n])
 
 		if !*echo {
-			// Do not write packet back to interface if
-			// not in "echo" mode
 			continue
 		}
-		n, err = iff.Write(packet[:n])
+		n, err = tunOut.Write(p[:n])
 		if err != nil {
 			log.Fatal(err)
 		}
 		log.Printf("Bytes written: %d\n", n)
 	}
+}
+
+func max(x, y int) int {
+	if x > y {
+		return x
+	}
+	return y
 }
