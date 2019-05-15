@@ -5,7 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"os/exec"
+	"os/user"
 	"net"
+	"errors"
 
 	"github.com/songgao/water"
 )
@@ -88,8 +90,22 @@ func (c Route) RedirectAll(gw string) error {
 	return nil
 }
 
+func CheckPermissions() error {
+	u, err := user.Current()
+	if err != nil {
+		return err
+	}
+	if u.Username != "root" {
+		return errors.New("This program requires root permissions")
+	}
+	return nil
+}
+
 func main() {
 	flag.Parse()
+	if err := CheckPermissions(); err != nil {
+		panic(err)
+	}
 
 	iff, err := TUN()
 	if err != nil {
