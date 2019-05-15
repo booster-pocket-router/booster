@@ -1,6 +1,6 @@
 before:
   hooks:
-    - env GO111MODULE=on go test ./...
+    - go test ./...
 builds:
   - 
     env:
@@ -9,7 +9,6 @@ builds:
     binary: booster
     goos:
       - darwin
-      - linux
     goarch:
       - amd64
       - 386
@@ -24,28 +23,3 @@ sign:
 
 snapshot:
   name_template: "SNAPSHOT-{{ .ShortCommit }}"
-
-snapcraft:
-  publish: false
-
-  # Single-line elevator pitch for your amazing snap.
-  # 79 char long at most.
-  summary: Strategy-based network interface balancer.
-
-  # This the description of your snap. You have a paragraph or two to tell the
-  # most important story about your snap. Keep it under 100 words though,
-  # we live in tweetspace and your description wants to look good in the snap
-  # store.
-  description: |
-    When **booster** spawns, it identifies the network interfaces available in the system that provide an active internet connection. It then starts a **socks5** proxy server which, according to some particular **strategy**, it is able to **distribute** the incoming network traffic across the network interfaces collected.
-    Source code is located at https://github.com/booster-proj/booster.
-
-  grade: stable
-  confinement: strict
-
-  apps:
-    booster:
-      plugs: [network, network-bind]
-      daemon: simple
-      args: --clean-log
-      
