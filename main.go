@@ -26,27 +26,41 @@ func (i *Iff) MTU() int {
 	return netIff.MTU
 }
 
-type IfconfigCmd struct {}
+func TUN() (*Iff, error) {
+	// Interface is not persistent
+	wIff, err := water.New(water.Config{
+		DeviceType: water.TUN,
+	})
+	if err != nil {
+		return nil, err
+	}
 
-func (c IfconfigCmd) Name() string {
+	return &Iff{
+		Interface: wIff,
+	}, nil
+}
+
+type Ifconfig struct {}
+
+func (c Ifconfig) Name() string {
 	return "ifconfig"
 }
 
-func (c IfconfigCmd) Up(name, dst, gw string) *exec.Cmd {
+func (c Ifconfig) Up(name, dst, gw string) *exec.Cmd {
 	return exec.Command(c.Name(), name, gw, dst, "up")
 }
 
-type RouteCmd struct {}
+type Route struct {}
 
-func (c RouteCmd) Name() string {
+func (c Route) Name() string {
 	return "route"
 }
 
-func (c RouteCmd) Add(dst, gw string) *exec.Cmd {
+func (c Route) Add(dst, gw string) *exec.Cmd {
 	return exec.Command(c.Name(), "-n", "add", dst, gw)
 }
 
-func (c RouteCmd) Del(dst, gw string) *exec.Cmd {
+func (c Route) Del(dst, gw string) *exec.Cmd {
 	return exec.Command(c.Name(), "-n", "del", dst, gw)
 }
 
@@ -54,7 +68,7 @@ func (c RouteCmd) Del(dst, gw string) *exec.Cmd {
 // sudo route -n add 0/1 10.12.44.16
 // sudo route -n add 128.0/1 10.12.44.16
 // Tries to rollback in case of problems.
-func (c RouteCmd) RedirectAll(gw string) error {
+func (c Route) RedirectAll(gw string) error {
 	net1 := "0/1"
 	net2 := "128.0/1"
 	rollback := func() {
@@ -74,20 +88,6 @@ func (c RouteCmd) RedirectAll(gw string) error {
 	return nil
 }
 
-func TUN() (*Iff, error) {
-	// Interface is not persistent
-	wIff, err := water.New(water.Config{
-		DeviceType: water.TUN,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &Iff{
-		Interface: wIff,
-	}, nil
-}
-
 func main() {
 	flag.Parse()
 
@@ -99,8 +99,8 @@ func main() {
 	fmt.Printf("Successfully attached to TUN device: %s\n", iff.Name())
 	fmt.Printf("MTU: %d\n", iff.MTU())
 
-	ifconfig := IfconfigCmd{}
-	route := RouteCmd{}
+	ifconfig := Ifconfig{}
+	route := Route{}
 
 	// Bring the interface UP
 	if err := ifconfig.Up(iff.Name(), *gw, *gw).Run(); err != nil {
