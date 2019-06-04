@@ -1,0 +1,12 @@
+# my global config
+global:
+  scrape_interval:     3s
+  evaluation_interval: 10s
+  # scrape_timeout is set to the global default (10s).
+
+scrape_configs:
+- job_name: booster
+  metrics_path: /metrics
+  # TODO: scape using the mDNS records
+  static_configs:
+    - targets: ['localhost:7764']

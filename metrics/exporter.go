@@ -58,6 +58,12 @@ var (
 		Name:      "conn_latency_ms",
 		Help:      "Latency value measured in milliseconds",
 	}, []string{"source", "target"})
+
+	countPort = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Name:      "port_count",
+		Help:      "Number of times a port is being used",
+	}, []string{"port", "protocol"})
 )
 
 func init() {
@@ -66,6 +72,7 @@ func init() {
 	prometheus.MustRegister(selectSource)
 	prometheus.MustRegister(countConn)
 	prometheus.MustRegister(addLatency)
+	prometheus.MustRegister(countPort)
 }
 
 // Exporter can be used to both capture and serve metrics.
@@ -108,4 +115,9 @@ func (exp *Exporter) CountOpenConn(labels map[string]string, val int) {
 func (exp *Exporter) AddLatency(labels map[string]string, d time.Duration) {
 	ms := float64(d / 1000000)
 	addLatency.With(prometheus.Labels(labels)).Add(ms)
+}
+
+//IncProtocol increments the protocol counter
+func (exp *Exporter) IncPortCount(labels map[string]string) {
+	countPort.With(prometheus.Labels(labels)).Inc()
 }
