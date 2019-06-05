@@ -33,6 +33,7 @@ type MetricsExporter interface {
 	SendDataFlow(labels map[string]string, data *DataFlow)
 	CountOpenConn(labels map[string]string, inc int)
 	AddLatency(labels map[string]string, d time.Duration)
+	CountPort(labels map[string]string, inc int)
 }
 
 // Interface is a wrapper around net.Interface and
@@ -99,6 +100,12 @@ func (i *Interface) Follow(conn net.Conn) net.Conn {
 		"source": i.ID(),
 		"target": conn.RemoteAddr().String(),
 	}
+	_, port, _ := net.SplitHostPort(conn.RemoteAddr().String())
+
+	portNetworkLabels := map[string]string{
+		"port":     port,
+		"protocol": conn.RemoteAddr().Network(),
+	}
 
 	// TODO: in order to capture the latency metric, we have to ensure
 	// that ww know which how's the data flow going. We can make some
@@ -111,9 +118,11 @@ func (i *Interface) Follow(conn net.Conn) net.Conn {
 
 	var t0 time.Time
 	i.SendCountOpenConn(labels, 1)
+	i.SendCountPort(portNetworkLabels, 1)
 	wconn.OnClose = func() {
 		i.conns.Del(wconn)
 		i.SendCountOpenConn(labels, -1)
+		i.SendCountPort(portNetworkLabels, -1)
 	}
 	wconn.OnRead = func(data *DataFlow) {
 		if started && !received {
@@ -159,6 +168,17 @@ func (i *Interface) SendCountOpenConn(labels map[string]string, inc int) {
 	defer i.metrics.Unlock()
 
 	i.metrics.exporter.CountOpenConn(labels, inc)
+}
+
+func (i *Interface) SendCountPort(labels map[string]string, inc int) {
+	if i.metrics.exporter == nil {
+		return
+	}
+
+	i.metrics.Lock()
+	defer i.metrics.Unlock()
+
+	i.metrics.exporter.CountPort(labels, inc)
 }
 
 // SendDataFlow sends the transmission data using the Interface's MetricsExporter.

@@ -46,7 +46,6 @@ func New(b Balancer) *Dialer {
 // which is used to collect a metric when a source is selected for use.
 type MetricsExporter interface {
 	IncSelectedSource(labels map[string]string)
-	IncPortCount(labels map[string]string)
 }
 
 // Dialer is a core.Dialer implementation, which uses a core.Balancer
@@ -122,12 +121,5 @@ func (d *Dialer) sendMetrics(name, target, network string) {
 	d.metrics.exporter.IncSelectedSource(map[string]string{
 		"source": name,
 		"target": target,
-	})
-
-	_, port, _ := net.SplitHostPort(target)
-
-	d.metrics.exporter.IncPortCount(map[string]string{
-		"port":     port,
-		"protocol": network,
 	})
 }

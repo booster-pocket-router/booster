@@ -59,7 +59,7 @@ var (
 		Help:      "Latency value measured in milliseconds",
 	}, []string{"source", "target"})
 
-	countPort = prometheus.NewCounterVec(prometheus.CounterOpts{
+	countPort = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "port_count",
 		Help:      "Number of times a port is being used",
@@ -117,7 +117,7 @@ func (exp *Exporter) AddLatency(labels map[string]string, d time.Duration) {
 	addLatency.With(prometheus.Labels(labels)).Add(ms)
 }
 
-//IncProtocol increments the protocol counter
-func (exp *Exporter) IncPortCount(labels map[string]string) {
-	countPort.With(prometheus.Labels(labels)).Inc()
+//CountPort updates the port counter
+func (exp *Exporter) CountPort(labels map[string]string, val int) {
+	countPort.With(prometheus.Labels(labels)).Add(float64(val))
 }
