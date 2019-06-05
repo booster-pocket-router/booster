@@ -16,8 +16,7 @@ import (
 
 var echo = flag.Bool("echo", false, "Echo packets received back to TUN")
 
-const gwIn = "10.12.44.10"
-const gwOut = "10.12.44.20"
+const gw = "10.12.44.10"
 
 type Iff struct {
 	*water.Interface
@@ -86,49 +85,32 @@ func main() {
 		panic(err)
 	}
 
-	tunIn, err := TUN()
+	tun, err := TUN()
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Successfully attached to TUN device: %s (MTU: %d)\n", tunIn.Name(), tunIn.MTU())
-
-	tunOut, err := TUN()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Successfully attached to TUN device: %s (MTU: %d)\n", tunOut.Name(), tunOut.MTU())
+	fmt.Printf("Successfully attached to TUN device: %s (MTU: %d)\n", tun.Name(), tun.MTU())
 
 	ifconfig := Ifconfig{}
-	if err := ifconfig.Up(tunIn.Name(), gwIn, gwIn).Run(); err != nil {
-		panic(err)
-	}
-	if err := ifconfig.Up(tunOut.Name(), gwOut, gwOut).Run(); err != nil {
+	if err := ifconfig.Up(tun.Name(), gw, gw).Run(); err != nil {
 		panic(err)
 	}
 
-	s := max(tunIn.MTU(), tunOut.MTU())
-	p := make([]byte, s)
+	p := make([]byte, tun.MTU())
 	for {
-		n, err := tunIn.Read(p)
+		n, err := tun.Read(p)
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Printf("Packet received: % x\n", p[:n])
+		log.Printf("% x\n", p[:n])
 
 		if !*echo {
 			continue
 		}
-		n, err = tunOut.Write(p[:n])
+		n, err = tun.Write(p[:n])
 		if err != nil {
 			log.Fatal(err)
 		}
 		log.Printf("Bytes written: %d\n", n)
 	}
-}
-
-func max(x, y int) int {
-	if x > y {
-		return x
-	}
-	return y
 }
