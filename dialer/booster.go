@@ -78,7 +78,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (conn
 			return
 		}
 
-		d.sendMetrics(src.ID(), address, network)
+		d.sendMetrics(src.ID(), address)
 
 		log.Debug.Printf("DialContext: Attempt #%d to connect to %v (source %v)", i, address, src.ID())
 
@@ -110,7 +110,7 @@ func (d *Dialer) SetMetricsExporter(exp MetricsExporter) {
 	d.metrics.exporter = exp
 }
 
-func (d *Dialer) sendMetrics(name, target, network string) {
+func (d *Dialer) sendMetrics(name, target string) {
 	if d.metrics.exporter == nil {
 		return
 	}
