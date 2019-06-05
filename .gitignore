@@ -20,3 +20,4 @@ data/
 *.swp
 _test/
 .prometheus.yml
+prometheus.yml
